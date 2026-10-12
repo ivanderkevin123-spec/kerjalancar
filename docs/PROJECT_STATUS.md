@@ -1,10 +1,10 @@
 # Project Status
 
-Updated: 2026-10-12 (evening, after Milestone 3)
+Updated: 2026-10-12 (night, Milestone 3 merged)
 
 ## Current phase
 
-Build-first MVP (D-019). Milestone 2 is merged into `main` (`c9fba63`). **Milestone 3 (customers, leads, pipeline, activity history) is implemented and tested on branch `m3-customers-leads`; the whole change set is uncommitted and awaits the founder's approval to commit.** Next: Milestone 4 (follow-ups, "Hari ini" list, WhatsApp click-to-chat). Validation track continues in parallel; Gate G1 checkpoint remains Sunday 2026-10-18.
+Build-first MVP (D-019). Milestone 2 is merged into `main` (`c9fba63`). **Milestone 3 (customers, leads, pipeline, activity history) is committed (`d5d3650`) and merged into `main` (`d773e1c`, founder-approved 2026-10-12).** The repository now has a GitHub remote, `origin` = https://github.com/ivanderkevin123-spec/kerjalancar; the first push runs the CI workflow for the first time. Next: Milestone 4 (follow-ups, "Hari ini" list, WhatsApp click-to-chat). Validation track continues in parallel; Gate G1 checkpoint remains Sunday 2026-10-18.
 
 ## What works now (try it locally)
 
@@ -24,7 +24,7 @@ make migrate && make run        # http://localhost:8080 → /daftar, then /app/p
 make test-db                    # full suite against Postgres (two packages at a time)
 ```
 
-## Change set on `m3-customers-leads` (uncommitted, from `main` c9fba63)
+## Change set of Milestone 3 (commit `d5d3650` on `m3-customers-leads`, merged as `d773e1c`)
 
 | Area | Files |
 |---|---|
@@ -75,15 +75,14 @@ Reviewer's verdict: "Ready to commit: with fixes" — no Critical findings; tena
 - Deferred from the M2 review as known gaps: no cap on concurrent Argon2 verifications (small pilot instances should run with ≥ 512 MB); registration reveals whether an e-mail is taken (mitigated by closed registration and the 10/min per-IP limit).
 - Lead search is `ILIKE` without trigram indexes (R-18); the customer select on the lead form lists at most 500 customers by name.
 - CSS build needs Node 22 on PATH (`make css-npm`); the standalone Tailwind download still stalls on this machine (D-031).
-- golangci-lint not installed locally; GitHub remote still missing, CI unexecuted.
+- golangci-lint not installed locally; CI (vet, golangci-lint v2.14.0, race tests, govulncheck) runs on GitHub from the first push onwards and has not been observed yet.
 
 ## Decisions awaiting approval
 
-- Commit the M3 change set (proposed message in the session report) and merge `m3-customers-leads` into `main` after review.
 - D-033..D-042 recorded as routine decisions within the brief; say so if any should change.
 
 ## Next three actions
 
-1. Founder reviews the M3 report, approves the commit; Claude commits, merges to `main`, re-runs the suite there.
+1. Check the first CI run on GitHub (golangci-lint may report findings never seen locally); fix on a small branch if so.
 2. Milestone 4 plan: follow-ups table or promotion of `next_follow_up_on`, "Hari ini"/"Terlambat" lists in the workspace zone, WhatsApp templates and `wa.me` links, activity kinds for follow-ups.
 3. Founder: Day 1 outreach, GitHub repository, golangci-lint decision.
