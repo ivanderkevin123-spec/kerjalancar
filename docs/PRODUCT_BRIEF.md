@@ -98,4 +98,4 @@ KerjaLancar records what the owner *says* happened: a lead arrived, a quotation 
 
 ## 7. What would make us stop
 
-If after 12 interviews fewer than half of the primary segment can describe a specific, recent, costly incident of a forgotten lead, missed follow-up, or unbilled balance, the problem is not painful enough to pay for, and we stop or pivot before writing product code. Full thresholds are in `VALIDATION_PLAN.md`.
+If after 12 interviews fewer than half of the primary segment can describe a specific, recent, costly incident of a forgotten lead, missed follow-up, or unbilled balance, the problem is not painful enough to pay for. Under the build-first strategy (D-019) that result pauses development for a founder decision rather than preventing the first commit. Full thresholds are in `VALIDATION_PLAN.md`.

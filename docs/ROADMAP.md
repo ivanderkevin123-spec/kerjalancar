@@ -1,39 +1,39 @@
-# Roadmap — 8 weeks (2026-10-12 → 2026-12-13)
+# Roadmap — build-first with parallel validation (2026-10-12 → 2026-12-13)
 
-Each build week is one vertical slice: migration, logic, UI, tests, docs. A slice is done only when its acceptance criteria pass in CI and the founder has clicked through it on a phone. Gates can stop the plan.
+Strategy per D-019: development starts now in small milestones (M1–M7, detailed in `MVP_PLAN.md`); customer validation runs alongside (`VALIDATION_PLAN.md`, `DAY1_EXECUTION.md`, `CONCIERGE_TEST.md`). A milestone is done only when its acceptance criteria pass in tests the founder can re-run and the feature has been clicked through on a phone. Gates can narrow, revise, pivot, or pause scope.
 
-| Week | Dates | Outcome | Acceptance criteria |
-|---|---|---|---|
-| 0 Validation | Oct 12–18 | Gate G1 decision | ≥ 12 interviews scored; concierge test run with 3–5 owners (`CONCIERGE_TEST.md`); `VALIDATION_FINDINGS.md` written; six-outcome thresholds in `VALIDATION_PLAN.md` §5 evaluated; D-012..D-017 decided; toolchain installs (Go 1.27, Postgres, sqlc, goose) only after the founder's explicit go-ahead |
-| 1 Skeleton + auth | Oct 19–25 | A business can sign up, log in, and invite one staff member; nobody can see another workspace | Repo, Dockerfile, CI green with Postgres; migrations; register/login/logout/reset; workspace + membership + roles; session security; cross-tenant test harness passes for `workspace` and `membership`; health check; structured logs |
-| 2 Customers + leads | Oct 26–Nov 1 | Owner records a lead in ≤ 15 s on a phone and moves it through the pipeline | Customer CRUD with WA number validation; lead stages Baru → Dihubungi → Penawaran → Menang/Kalah; activity log; list/search; empty states; cross-tenant matrix extended; mobile layout checked on a budget Android |
-| 3 Quotations | Nov 2–8 | Owner sends a quotation as a link and sees whether it was opened | Line items with integer-rupiah math and rounding tests; validity date; status draft/sent/accepted/rejected/expired; public share page with revocable token and print CSS; "opened at" tracking; WA template "kirim penawaran" with wa.me link |
-| 4 Invoices + payments | Nov 9–15 | Owner records DP and installments and always knows the outstanding balance | Invoice from quotation or blank; append-only payments with idempotency; reversal flow; balance computed in SQL and asserted; due dates in workspace zone; receivables list; audit events |
-| 5 Follow-ups + templates | Nov 16–22 | Owner opens the app and sees exactly who to contact today | Follow-up tasks on leads and invoices; "Hari ini" and "Terlambat" lists; auto follow-up suggestion after quotation sent; template library with placeholders; one-tap wa.me; staging deployment **(needs approval, D-005)**; smoke tests |
-| 6 Dashboard + onboarding + pilots | Nov 23–29 | 3–5 pilot businesses live and paying | Dashboard (pipeline value, quotations by status, receivables, today's follow-ups); onboarding to first lead in ≤ 2 min; Indonesian copy review; trial/plan flags; manual billing invoice; pilots onboarded in person or by call; founder usage dashboard |
-| 7 Hardening | Nov 30–Dec 6 | Pilots trust the data; incidents are diagnosable | Threat-model review done; backup restore drill executed and documented; error monitoring wired; rate limits verified; data export; privacy notice; fixes from pilot feedback; optional RLS |
-| 8 Subscription-readiness + G2 | Dec 7–13 | Gate G2 decision with usage and payment evidence | Pilot metrics computed from events (`VALIDATION_PLAN.md` §7); month-2 invoices sent; churn calls done; decision recorded; roadmap for next phase or stop |
+| Week | Dates | Build track | Validation track | Acceptance (build) |
+|---|---|---|---|---|
+| 0 | Oct 12–18 | M1 bootstrap; M2 auth + workspace + layout (starts once the toolchain is available) | Day 1 package, 12 interviews, concierge test, Gate G1 on Oct 18 | M1: `make test` green against Postgres, `/healthz` and `/readyz` live, migrations run; M2: sign-up/login/logout, invite staff, cross-tenant matrix passes for workspace and membership |
+| 1 | Oct 19–25 | M3 customers, leads, pipeline, activity | G1 outcome applied to scope; referrals; concierge debriefs | Lead recorded in ≤ 15 s on a budget Android; cross-tenant matrix extended |
+| 2 | Oct 26–Nov 1 | M4 follow-ups, today/overdue lists, WA templates with `wa.me` | Show M3/M4 build to 3 interviewees for reaction (no real data) | "Hari ini" and "Terlambat" correct at zone boundaries; one-tap WA |
+| 3 | Nov 2–8 | M5 quotations, totals, share link, PDF | Collect 3 real quotation samples (sanitized) to test the PDF layout | Rounding table tests; token tests; PDF opens on Android WhatsApp |
+| 4 | Nov 9–15 | M6 invoices, DP/installments, balances, dashboard | Pilot shortlist from commitments (ladder ≥ 3) | Balance in SQL equals Go; idempotency and reversal tests; dashboard numbers reconciled |
+| 5 | Nov 16–22 | M7 security review, e2e, backup/restore drill, deployment prep; **staging deploy needs approval and a cost line (D-005)** | Pilot onboarding calls scheduled | Threat-model checklist done; restore drill logged; Playwright critical flows green; smoke tests on staging |
+| 6 | Nov 23–29 | Pilot fixes | 3–5 pilots live, paying month one | Pilots can run the full loop without founder help |
+| 7 | Nov 30–Dec 6 | Pilot fixes, usage dashboard | Weekly pilot calls, churn reasons | Pilot metrics computed from events |
+| 8 | Dec 7–13 | Subscription-readiness (manual billing) | Gate G2 | G2 record: continue / narrow / pivot / stop (`VALIDATION_PLAN.md` §8) |
 
 ## Gates
 
-- **G1 (Oct 18):** proceed / narrow / pivot / stop per `VALIDATION_PLAN.md` §5. Weeks 1–8 do not start without it.
-- **Staging approval (Week 5):** provisioning any hosted resource requires the founder's explicit approval and a stated monthly cost.
-- **G2 (Dec 13):** continue / narrow / pivot / stop per `VALIDATION_PLAN.md` §8.
+- **G1 (Oct 18):** validation checkpoint; outcomes in `VALIDATION_PLAN.md` §5. Can narrow the segment, revise scope, pivot, or pause; does not gate M1–M2.
+- **Toolchain (now):** installing Go 1.27 and running Postgres need the founder's choice (`PROJECT_STATUS.md`, D-022).
+- **Staging approval (Week 5):** provisioning any hosted resource requires explicit approval with a stated monthly cost.
+- **G2 (Dec 13):** continue / narrow / pivot / stop with pilot usage and payment evidence.
 
-## Traceability: slice → assumptions, risks, and the test that proves it
+## Traceability: milestone → assumptions, risks, and the test that proves it
 
-| Week | Validates assumptions | Mitigates risks | Proof |
+| Milestone | Validates assumptions | Mitigates risks | Proof |
 |---|---|---|---|
-| 0 | A-02, A-03, A-04, A-05, A-06, A-07, A-14 | R-02, R-03 | Scored interviews, concierge metrics, G1 record |
-| 1 | A-13 | R-04 | Cross-tenant matrix for workspace and membership; session and CSRF tests; `govulncheck` |
-| 2 | A-04, A-10 | R-01, R-05 | Time-to-record measured on a budget Android; cross-tenant matrix for customers and leads |
-| 3 | A-07, A-14 | R-05, R-09, R-14, R-16 | Money rounding table tests; share-token tests; JS island stays within one controller |
-| 4 | A-11, A-19 | R-09, R-11 | Balance computed in SQL equals Go; idempotency and reversal tests; `FOR UPDATE` concurrency test |
-| 5 | A-12, A-15 | R-10 | Zone-boundary tests for "hari ini"; staging smoke tests after approval |
-| 6 | A-05, A-08 | R-02, R-06 | Pilots paying month one; onboarding ≤ 2 min measured |
-| 7 | A-16 | R-04, R-07, R-15 | Restore drill log; threat-model checklist; export/delete verified |
-| 8 | A-05 | R-02, R-15 | Pilot metrics from events; G2 record |
+| M1 | A-13 (groundwork) | R-04 (groundwork) | Config tests; `/readyz` DB check; migration test against Postgres; CI workflow |
+| M2 | A-13 | R-04 | Cross-tenant matrix for workspace and membership; session, CSRF, Argon2id, login rate-limit tests |
+| M3 | A-04, A-10 | R-01, R-05 | Time-to-record measured on a budget Android; cross-tenant matrix for customers and leads |
+| M4 | A-08, A-12, A-15 | R-08, R-10 | Zone-boundary tests for "hari ini"; `wa.me` URL encoding tests |
+| M5 | A-07, A-14 | R-05, R-09, R-14, R-16 | Money rounding table tests; share-token tests; PDF golden test; JS island stays within one controller |
+| M6 | A-11, A-19 | R-09, R-11 | Balance computed in SQL equals Go; idempotency and reversal tests; `FOR UPDATE` concurrency test; dashboard reconciliation test |
+| M7 | A-16 | R-04, R-07, R-15 | Threat-model checklist; restore drill log; Playwright critical flows; export/delete verified |
+| Pilots | A-02, A-03, A-05 | R-02, R-15 | Pilot metrics from events; G2 record |
 
 ## Slip policy
 
-If a week slips, cut scope inside the slice (fewer fields, fewer views) before cutting tests or the cross-tenant matrix. Never move Week 1 security work later.
+If a milestone slips, cut scope inside it (fewer fields, fewer views) before cutting tests or the cross-tenant matrix. Never move M2 security work later. Validation interviews are not cut to make room for code.

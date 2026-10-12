@@ -86,14 +86,15 @@ Single repository, single deployable service. A monorepo toolchain (Turborepo, w
 
 ## 3. Components (versions confirmed in Phase B against the hosting platform)
 
-- Go 1.27.x (Homebrew offers 1.27.1 on 2026-10-12; machine has 1.17.5; upgrade needs approval, D-004 approved the approach, not the install)
+- Go 1.27.2 (latest stable on go.dev, 2026-10-12; machine has 1.17.5; install method is the founder's choice, D-022)
 - `chi` v5 router on `net/http`; `html/template`; `log/slog` JSON logs; graceful shutdown; per-request timeouts
-- HTMX 2.x vendored as a pinned static file; Stimulus only if JS islands exceed two or three controllers, otherwise small vanilla modules; Tailwind CSS standalone CLI (no Node in the build)
-- PostgreSQL 16 or 17; `pgx/v5`; `sqlc` typed queries; `goose` migrations
-- Sessions server-side in Postgres (`alexedwards/scs`); Argon2id (`golang.org/x/crypto/argon2`); CSRF via Go 1.25+ `net/http` CrossOriginProtection [verify in release notes] with a double-submit token fallback
+- htmx 2.0.11 vendored as a pinned static file (D-021: not 4.0.0); Stimulus only if JS islands exceed two or three controllers, otherwise small vanilla modules; Tailwind CSS v4 standalone CLI (`tailwindcss-macos-arm64` / `tailwindcss-linux-x64`, no Node in the build)
+- PostgreSQL 17 (`postgres:17-alpine` locally); `pgx/v5` v5.11.0; `sqlc` v1.31.1 typed queries from M2; `goose` v3.29.0 migrations (Provider API, embedded SQL); `chi` v5.3.2; `testify` v1.12.1
+- Sessions server-side in Postgres (`alexedwards/scs` v2.9.0 + postgresstore); Argon2id (`golang.org/x/crypto/argon2`); CSRF via `net/http.NewCrossOriginProtection` (confirmed: added in Go 1.25) with a double-submit token fallback for browsers without Fetch metadata
 - In-process rate limiting (single instance during pilots); error monitoring via Sentry Go SDK or GlitchTip [external service, needs approval]
 - Background jobs: none in v1 (reminders are queries). If daily digests are validated, add River (Postgres-backed), not Redis
-- PDF: none in v1. Share pages with print CSS; pure-Go PDF (e.g., maroto) only if pilots ask
+- PDF generation runs synchronously in the request (bounded by the 30 s timeout); no worker
+- PDF: required in v1 for quotations and invoices (D-020, built in M5) with a pure-Go generator chosen at M5 start; share pages with print CSS remain
 - Tests: `testing` + `testify`; handler tests with `httptest` and HTML assertions; Postgres integration tests with per-test transactions; `-race`; `golangci-lint`; `govulncheck`; Playwright for critical flows (sign-up → first lead → quotation link → payment → today list)
 - CI: GitHub Actions with a Postgres service container
 - Hosting (D-005): Fly.io (sin), Railway (Singapore), or Render (Singapore) with managed Postgres; Docker image; daily backups and a tested restore script

@@ -1,6 +1,6 @@
 # Validation Plan — First 7 Days (2026-10-12 → 2026-10-18)
 
-Goal: decide, with evidence, whether to build KerjaLancar for renovation/interior contractors (segment A), switch to wedding organizers/event vendors (B), narrow further, or stop. No product code is written until Gate G1 passes, except reversible toolchain setup.
+Goal: decide, with evidence, whether KerjaLancar should keep building for renovation/interior contractors (segment A), switch to wedding organizers/event vendors (B), narrow further, revise scope, or pause. Under D-019 (build-first, 2026-10-12) development runs in parallel from Milestone 1; Gate G1 is the checkpoint for the validation track, and its NARROW / REVISE / PIVOT / STOP outcomes change scope or pause work rather than gate the first commit.
 
 Rules: no fabricated interviews, no paraphrased "typical customer" claims. Every finding links to a dated interview note with the interviewee's initials and segment. Opinions ("that sounds useful") are logged but score zero; only past behavior and commitments count.
 
@@ -64,7 +64,7 @@ The date is a checkpoint, not an approval. Count the primary segment (A) unless 
 - 0 commitments at any price ≥ Rp99,000/month after ≥ 8 interviews and the concierge test, or
 - Concierge: 0 of ≥ 3 participants record a real lead themselves within 5 days
 
-Write up what we learned and what alternative problem interviewees kept raising. Development does not start.
+Write up what we learned and what alternative problem interviewees kept raising. Development pauses pending the founder's decision (D-019 makes this a founder call, not an automatic halt).
 
 **PIVOT to B** when A fails the PROCEED pain or workaround criteria below but B, with ≥ 3 interviews, meets them and has ≥ 2 commitments. Run 3 more B interviews and re-run the commitment test before Week 1.
 
@@ -81,7 +81,7 @@ Revise `PRODUCT_BRIEF.md` scope and re-gate within 5 days. If a complete RAB sys
 - Pain criterion met by 3 of 5 (borderline), or commitments at 1–2 (borderline), or
 - Concierge has < 3 participants or < 5 observation days
 
-Extend by up to 7 days with a named target (e.g., "3 more A interviews, 2 more concierge participants"). Maximum two extensions; after that choose between PIVOT and STOP. Insufficient evidence never results in development.
+Extend by up to 7 days with a named target (e.g., "3 more A interviews, 2 more concierge participants"). Maximum two extensions; after that choose between PIVOT and STOP. Insufficient evidence never counts as validation; under D-019 building continues on the committed scope, but segment-specific features and pilot invitations wait for evidence.
 
 **NARROW** when PROCEED criteria are met overall but the evidence clusters:
 
@@ -90,7 +90,7 @@ Extend by up to 7 days with a named target (e.g., "3 more A interviews, 2 more c
 
 Name the sub-niche, run 5 more interviews there over ≤ 4 days, then PROCEED for that sub-niche only.
 
-**PROCEED** (build for A) requires all of:
+**PROCEED** (confirm A as the pilot segment and continue building) requires all of:
 
 - ≥ 5 A interviews completed with scored notes
 - ≥ 4 of them describe a specific incident of a lost lead, missed follow-up, or unbilled/late balance
