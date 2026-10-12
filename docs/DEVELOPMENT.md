@@ -9,7 +9,7 @@ Prerequisites: Go 1.27.x on PATH, Docker Desktop running (for Postgres), GNU mak
 5. `make test` — unit tests plus database tests (the test database is migrated automatically by the test harness)
 6. `make lint` — `go vet` and, if installed, `golangci-lint`
 
-Environment variables: see `.env.example`. `APP_ENV` is `development`, `test`, or `production`; `BASE_URL` must be https in production.
+Environment variables: see `.env.example`. `APP_ENV` is `development`, `test`, or `production`; `BASE_URL` must be https in production. `TRUSTED_PROXY=true` only when a proxy in front of the app overwrites `X-Forwarded-For`; otherwise client IPs in logs and rate limits could be forged.
 
 Using a Go toolchain that is not on PATH (for example `~/sdk/go1.27.2`): `GO=~/sdk/go1.27.2/bin/go make test`.
 

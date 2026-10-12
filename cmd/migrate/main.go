@@ -3,13 +3,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
-	"kerjalancar/internal/config"
 	"kerjalancar/internal/db"
 )
 
@@ -24,9 +25,10 @@ func run(args []string) error {
 	if len(args) != 1 || (args[0] != "up" && args[0] != "status") {
 		return fmt.Errorf("usage: migrate up|status")
 	}
-	cfg, err := config.Load(os.Getenv)
-	if err != nil {
-		return err
+	// Only DATABASE_URL matters here; web settings must never block a migration job.
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		return errors.New("DATABASE_URL is required")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -34,7 +36,7 @@ func run(args []string) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	pool, err := db.NewPool(ctx, cfg.DatabaseURL)
+	pool, err := db.NewPool(ctx, databaseURL)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}

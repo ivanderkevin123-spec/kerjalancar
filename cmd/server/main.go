@@ -50,7 +50,7 @@ func run() error {
 	}
 
 	srv := &http.Server{
-		Handler:           web.NewRouter(web.Deps{Logger: logger, DB: pool}),
+		Handler:           web.NewRouter(web.Deps{Logger: logger, DB: pool, TrustProxy: cfg.TrustedProxy}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

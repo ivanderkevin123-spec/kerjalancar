@@ -23,6 +23,9 @@ type Pinger interface {
 type Deps struct {
 	Logger *slog.Logger
 	DB     Pinger
+	// TrustProxy: honour X-Forwarded-For / X-Real-IP. Never set it unless a
+	// trusted proxy in front of the app overwrites those headers.
+	TrustProxy bool
 }
 
 const (
@@ -34,7 +37,9 @@ const (
 func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	if d.TrustProxy {
+		r.Use(middleware.RealIP)
+	}
 	r.Use(requestLogger(d.Logger))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(requestTimeout))

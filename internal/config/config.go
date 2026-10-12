@@ -16,6 +16,9 @@ type Config struct {
 	DatabaseURL string
 	LogLevel    slog.Level
 	BaseURL     string // no trailing slash
+	// TrustedProxy enables reading the client IP from X-Forwarded-For / X-Real-IP.
+	// Only true when the app sits behind a proxy that overwrites those headers.
+	TrustedProxy bool
 }
 
 // Getter returns the value of an environment variable, or "" when unset.
@@ -56,6 +59,14 @@ func Load(get Getter) (Config, error) {
 		errs = append(errs, fmt.Errorf("LOG_LEVEL must be debug, info, warn, or error (got %q)", rawLevel))
 	}
 	cfg.LogLevel = lvl
+
+	if raw := strings.TrimSpace(get("TRUSTED_PROXY")); raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("TRUSTED_PROXY must be true or false (got %q)", raw))
+		}
+		cfg.TrustedProxy = v
+	}
 
 	if cfg.Env == "production" && !strings.HasPrefix(cfg.BaseURL, "https://") {
 		errs = append(errs, errors.New("BASE_URL must use https in production"))

@@ -70,3 +70,17 @@ func TestLoadRequiresHTTPSInProduction(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "https")
 }
+
+func TestLoadTrustedProxy(t *testing.T) {
+	cfg, err := config.Load(getter(map[string]string{"DATABASE_URL": "x"}))
+	require.NoError(t, err)
+	assert.False(t, cfg.TrustedProxy, "off by default: headers from the internet must not be trusted")
+
+	cfg, err = config.Load(getter(map[string]string{"DATABASE_URL": "x", "TRUSTED_PROXY": "true"}))
+	require.NoError(t, err)
+	assert.True(t, cfg.TrustedProxy)
+
+	_, err = config.Load(getter(map[string]string{"DATABASE_URL": "x", "TRUSTED_PROXY": "yes"}))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "TRUSTED_PROXY")
+}

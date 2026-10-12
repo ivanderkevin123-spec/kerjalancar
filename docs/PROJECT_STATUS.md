@@ -16,7 +16,7 @@ Build-first MVP (D-019). **Milestone 1 (bootstrap) is complete** on branch `m1-b
 
 | Command | Result |
 |---|---|
-| `GO=~/sdk/go1.27.2/bin/go make test-db` (`go test -race -count=1 ./...` with `REQUIRE_DB=1`) | `ok internal/config`, `ok internal/db`, `ok internal/web`; 19 tests passed, 0 failed, 0 skipped |
+| `GO=~/sdk/go1.27.2/bin/go make test-db` (`go test -race -count=1 ./...` with `REQUIRE_DB=1`) | `ok internal/config`, `ok internal/db`, `ok internal/web`; 26 tests passed, 0 failed, 0 skipped (after review fix pass) |
 | `go vet ./...` | clean |
 | `gofmt -l .` | clean |
 | `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` | No vulnerabilities found |
@@ -36,6 +36,10 @@ GO=~/sdk/go1.27.2/bin/go make test-db
 ```
 
 Add `export PATH=$HOME/sdk/go1.27.2/bin:$PATH` to your shell for this project to drop the `GO=` prefix.
+
+## Review (self-review, 2026-10-12)
+
+Seven findings; fixed: client IP spoofing via X-Forwarded-For (now `TRUSTED_PROXY` opt-in), migrate command blocked by unrelated web config. Ruled unverified: migration race across parallel test binaries (4 simultaneous migrators on a fresh database succeeded 3/3; a concurrency test now guards it). Deferred minors: force-close after shutdown timeout, panic traces outside slog, unpinned govulncheck in CI, server binds all interfaces (no HOST). No fresh reviewer agent was used; the founder may request one before merge.
 
 ## Known defects and blockers
 
