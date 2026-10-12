@@ -13,9 +13,11 @@ import (
 	"syscall"
 	"time"
 
+	"kerjalancar/internal/auth"
 	"kerjalancar/internal/config"
 	"kerjalancar/internal/db"
 	"kerjalancar/internal/web"
+	"kerjalancar/internal/workspace"
 )
 
 func main() {
@@ -49,8 +51,25 @@ func run() error {
 		return fmt.Errorf("listen on %s: %w", addr, err)
 	}
 
+	templates, err := web.LoadTemplates()
+	if err != nil {
+		return err
+	}
+	deps := web.Deps{
+		Logger:           logger,
+		DB:               pool,
+		TrustProxy:       cfg.TrustedProxy,
+		Sessions:         web.NewSessionManager(pool, cfg.Env == "production", 30*time.Minute),
+		Auth:             auth.NewService(pool, auth.DefaultParams),
+		Workspaces:       workspace.NewStore(pool),
+		Templates:        templates,
+		RegistrationOpen: cfg.RegistrationOpen,
+		RegistrationCode: cfg.RegistrationCode,
+		BaseURL:          cfg.BaseURL,
+	}
+
 	srv := &http.Server{
-		Handler:           web.NewRouter(web.Deps{Logger: logger, DB: pool, TrustProxy: cfg.TrustedProxy}),
+		Handler:           web.NewRouter(deps),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
