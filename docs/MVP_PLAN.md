@@ -32,6 +32,8 @@ Tests: config table tests; router test for `/healthz`; `/readyz` test with a liv
 
 Deferred on purpose: Dockerfile (M7), Tailwind and htmx assets (M2), sqlc (introduced in M2 with the first real queries).
 
+**Status 2026-10-12: M1 complete on branch `m1-bootstrap`.** Verified: healthz/readyz live; readyz 503 in 0.045 s with Postgres stopped and 200 after restart; missing `DATABASE_URL` and `PORT=abc` exit 1 with one-line messages; SIGTERM lets an in-flight request finish (test) and exits 0; `make test-db` green with `-race` (19 tests, rollback-per-test harness); gofmt and govulncheck clean. Partial: `make lint` ran `go vet` only because golangci-lint is not installed locally (CI runs it); CI workflow authored and YAML-validated but not executed until a GitHub repository exists.
+
 ### M2 — Authentication, workspace, responsive layout (target: 3–4 days)
 
 Outcome: an owner signs up, creates a workspace, logs in and out, invites one staff member, and sees an empty mobile-first dashboard shell in Indonesian. Nobody can see another workspace.
