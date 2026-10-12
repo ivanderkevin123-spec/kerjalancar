@@ -50,6 +50,8 @@ Acceptance criteria:
 
 Tests: Argon2id hash/verify and parameter tests; session fixation test (session ID rotates at login); CSRF negative test; rate-limit test; invitation lifecycle; cross-tenant matrix (generated table test); handler tests asserting HTML with goquery; one Playwright smoke (sign-up to dashboard) kept for M7's suite.
 
+**Status 2026-10-12: M2 complete on branch `m2-auth-workspace` (pending review approval and merge).** Delivered: e-mail + Argon2id registration gated by `REGISTRATION_OPEN`/`REGISTRATION_CODE`, login, logout, server-side sessions (rotation on login, destroyed on logout; HttpOnly, SameSite=Lax, Secure in production), CSRF via `net/http.CrossOriginProtection`, rate limits (10/min per IP; 5/min per e-mail on login, 10/min on registration), workspace settings (rename, owner only), responsive Indonesian UI (login, registration, honest empty dashboard, settings, error pages), htmx 2.0.11 with `hx-boost` and one fragment. Deviations from the plan above, by decision: no invitations or staff UI (D-025), no sqlc (D-029), no goquery/Playwright yet (string assertions; Playwright in M7). Verified: 58 tests green with `-race` incl. full M1 regression; live curl check; gofmt, vet, govulncheck (one module-level advisory in x/crypto not reachable from our code).
+
 ### M3 — Customers, leads, pipeline, activity (target: 5 days)
 
 Outcome: the owner records a lead in ≤ 15 s on a phone, moves it through Baru → Dihubungi → Penawaran → Menang/Kalah, and sees the activity history.

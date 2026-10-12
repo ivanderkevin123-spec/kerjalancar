@@ -88,7 +88,7 @@ Single repository, single deployable service. A monorepo toolchain (Turborepo, w
 
 - Go 1.27.2 (latest stable on go.dev, 2026-10-12; machine has 1.17.5; install method is the founder's choice, D-022)
 - `chi` v5 router on `net/http`; `html/template`; `log/slog` JSON logs; graceful shutdown; per-request timeouts
-- htmx 2.0.11 vendored as a pinned static file (D-021: not 4.0.0); Stimulus only if JS islands exceed two or three controllers, otherwise small vanilla modules; Tailwind CSS v4 standalone CLI (`tailwindcss-macos-arm64` / `tailwindcss-linux-x64`, no Node in the build)
+- htmx 2.0.11 vendored as a pinned static file (D-021: not 4.0.0); Stimulus only if JS islands exceed two or three controllers, otherwise small vanilla modules; Tailwind CSS v4: `static/app.css` is a committed build artifact produced by the standalone CLI (`make css`) or the Node fallback (`make css-npm`, D-031); the Go build and CI never need Tailwind or Node
 - PostgreSQL 17 (`postgres:17-alpine` locally); `pgx/v5` v5.11.0; `sqlc` v1.31.1 typed queries from M2; `goose` v3.29.0 migrations (Provider API, embedded SQL); `chi` v5.3.2; `testify` v1.12.1
 - Sessions server-side in Postgres (`alexedwards/scs` v2.9.0 + postgresstore); Argon2id (`golang.org/x/crypto/argon2`); CSRF via `net/http.NewCrossOriginProtection` (confirmed: added in Go 1.25) with a double-submit token fallback for browsers without Fetch metadata
 - In-process rate limiting (single instance during pilots); error monitoring via Sentry Go SDK or GlitchTip [external service, needs approval]

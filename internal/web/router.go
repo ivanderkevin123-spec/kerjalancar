@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
@@ -50,8 +51,9 @@ type server struct {
 }
 
 const (
-	loginLimitPerIP    = 10
-	loginLimitPerEmail = 5
+	loginLimitPerIP       = 10 // requests per minute per client IP, per endpoint
+	loginLimitPerEmail    = 5  // login attempts per minute per e-mail
+	registerLimitPerEmail = 10 // registration attempts per e-mail; typo corrections must not lock people out
 )
 
 const (
@@ -77,7 +79,7 @@ func NewRouter(d Deps) http.Handler {
 	if err != nil {
 		panic("web: static fs: " + err.Error())
 	}
-	r.Handle("/static/*", cacheFor(time.Hour, http.StripPrefix("/static/", http.FileServerFS(static))))
+	r.Handle("/static/*", cacheFor(time.Hour, noListing(http.StripPrefix("/static/", http.FileServerFS(static)))))
 
 	if d.Sessions == nil {
 		return r
@@ -101,9 +103,9 @@ func NewRouter(d Deps) http.Handler {
 
 		r.Get("/", s.root)
 		r.Get("/masuk", s.getMasuk)
-		r.With(s.authLimits()...).Post("/masuk", s.postMasuk)
+		r.With(s.authLimits(loginLimitPerEmail)...).Post("/masuk", s.postMasuk)
 		r.Get("/daftar", s.getDaftar)
-		r.With(s.authLimits()...).Post("/daftar", s.postDaftar)
+		r.With(s.authLimits(registerLimitPerEmail)...).Post("/daftar", s.postDaftar)
 		r.Post("/keluar", s.postKeluar)
 
 		r.Route("/app", func(r chi.Router) {
@@ -117,15 +119,26 @@ func NewRouter(d Deps) http.Handler {
 	return r
 }
 
-// authLimits throttles credential endpoints per client IP and per e-mail.
-// Each call creates fresh counters, so each router has its own limits.
-func (s *server) authLimits() []func(http.Handler) http.Handler {
+// authLimits throttles a credential endpoint per client IP and per e-mail.
+// Each call creates fresh counters, so each endpoint and router has its own.
+func (s *server) authLimits(perEmail int) []func(http.Handler) http.Handler {
 	deny := httprate.WithLimitHandler(s.tooManyRequests)
 	byIP := httprate.Limit(loginLimitPerIP, time.Minute, httprate.WithKeyByIP(), deny)
-	byEmail := httprate.Limit(loginLimitPerEmail, time.Minute, httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
+	byEmail := httprate.Limit(perEmail, time.Minute, httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
 		return "email:" + auth.NormalizeEmail(r.FormValue("email")), nil
 	}), deny)
 	return []func(http.Handler) http.Handler{byIP, byEmail}
+}
+
+// noListing refuses directory paths so the embedded asset folder is never listed.
+func noListing(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func cacheFor(d time.Duration, next http.Handler) http.Handler {

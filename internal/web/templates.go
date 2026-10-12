@@ -15,7 +15,9 @@ import (
 //go:embed templates
 var templateFS embed.FS
 
-//go:embed static
+// Only the two served assets are embedded; the Tailwind source stays out of the binary.
+//
+//go:embed static/app.css static/htmx.min.js
 var staticFS embed.FS
 
 // pageLayouts maps each page template to the layout that wraps it.

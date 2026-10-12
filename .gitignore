@@ -19,7 +19,7 @@ coverage.out
 
 # local toolchains, caches, assets
 /.toolchain/
-node_modules/
+node_modules
 
 # plan-execution scratch (ledger, briefs)
 /.superpowers/
