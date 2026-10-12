@@ -1,11 +1,21 @@
 package web
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
 )
+
+// fragment writes one named template for an htmx swap; a failure becomes a logged 500.
+func (s *server) fragment(w http.ResponseWriter, r *http.Request, page, name string, v *View) {
+	if err := s.Templates.Fragment(w, http.StatusOK, page, name, v); err != nil {
+		// Fragment buffers its output, so nothing has been written yet and the
+		// full error page (retargeted to the body for htmx) can still be sent.
+		s.serverError(w, r, fmt.Errorf("fragment %s/%s: %w", page, name, err))
+	}
+}
 
 // render writes a page; a template failure becomes a logged 500 with no partial output.
 func (s *server) render(w http.ResponseWriter, r *http.Request, status int, page string, v *View) {
@@ -19,6 +29,11 @@ func (s *server) render(w http.ResponseWriter, r *http.Request, status int, page
 // errorPage renders the shared error page. It must not touch the session:
 // some callers (CSRF denial, rate limiting) run before the session is loaded.
 func (s *server) errorPage(w http.ResponseWriter, r *http.Request, status int, heading, message string) {
+	if r.Header.Get("HX-Request") == "true" {
+		// Replace the whole page, whatever fragment the request targeted.
+		w.Header().Set("HX-Retarget", "body")
+		w.Header().Set("HX-Reswap", "innerHTML")
+	}
 	v := newView(heading)
 	v.Heading = heading
 	v.Message = message
@@ -40,6 +55,10 @@ func (s *server) badRequest(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) forbidden(w http.ResponseWriter, r *http.Request) {
 	s.errorPage(w, r, http.StatusForbidden, "Permintaan ditolak", "Permintaan berasal dari situs lain. Muat ulang halaman dan coba lagi.")
+}
+
+func (s *server) tooLarge(w http.ResponseWriter, r *http.Request) {
+	s.errorPage(w, r, http.StatusRequestEntityTooLarge, "Data terlalu besar", "Data yang dikirim terlalu besar. Periksa isian lalu coba lagi.")
 }
 
 func (s *server) tooManyRequests(w http.ResponseWriter, r *http.Request) {

@@ -13,7 +13,8 @@
 
 {{define "pengaturan_form"}}
 <form hx-post="/app/pengaturan" hx-target="this" hx-swap="outerHTML" method="post" action="/app/pengaturan" class="space-y-4" novalidate>
-  {{if .Saved}}<div role="status" class="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">Nama usaha tersimpan.</div>{{end}}
+  {{if .Saved}}<div role="status" class="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">Nama usaha tersimpan.</div>
+  <span id="workspace-name" hx-swap-oob="true" class="truncate max-w-[12rem] sm:max-w-xs">{{.Workspace.Name}}</span>{{end}}
   <div>
     <label for="name" class="block text-sm font-medium text-slate-700">Nama usaha</label>
     <input id="name" name="name" type="text" required maxlength="100" value="{{.Form.name}}"

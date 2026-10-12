@@ -27,7 +27,7 @@ func loggedIP(t *testing.T, trustProxy bool) string {
 
 func TestForwardedForIsIgnoredWithoutTrustedProxy(t *testing.T) {
 	out := loggedIP(t, false)
-	assert.Contains(t, out, `"ip":"10.0.0.7:4321"`)
+	assert.Contains(t, out, `"ip":"10.0.0.7"`)
 	assert.NotContains(t, out, "203.0.113.9")
 }
 

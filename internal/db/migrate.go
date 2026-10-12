@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 )
 
 //go:embed migrations/*.sql
@@ -56,8 +57,15 @@ func newProvider(pool *pgxpool.Pool) (*goose.Provider, func(), error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("migrations fs: %w", err)
 	}
+	// Several app instances or test binaries may migrate at the same moment.
+	// A Postgres advisory lock serialises them, so concurrent CREATE TABLE
+	// statements for the same migration cannot collide.
+	locker, err := lock.NewPostgresSessionLocker()
+	if err != nil {
+		return nil, nil, fmt.Errorf("goose locker: %w", err)
+	}
 	sqlDB := stdlib.OpenDBFromPool(pool)
-	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, sub)
+	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, sub, goose.WithSessionLocker(locker))
 	if err != nil {
 		_ = sqlDB.Close()
 		return nil, nil, fmt.Errorf("goose provider: %w", err)

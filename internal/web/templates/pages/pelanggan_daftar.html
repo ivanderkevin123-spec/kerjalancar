@@ -1,0 +1,45 @@
+{{define "content"}}
+<div class="flex items-start justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-semibold text-slate-900">Pelanggan</h1>
+    <p class="mt-1 text-sm text-slate-500">Kontak yang pernah menghubungi usaha Anda.</p>
+  </div>
+  <a href="/app/pelanggan/baru" class="{{template "btn_primary"}} shrink-0 text-sm">+ Tambah</a>
+</div>
+
+<form method="get" action="/app/pelanggan" class="mt-4 flex gap-2" role="search">
+  <label for="q" class="sr-only">Cari pelanggan</label>
+  <input id="q" name="q" type="search" value="{{.Data.Q}}" placeholder="Cari nama, nomor, atau perusahaan" autocomplete="off"
+         class="block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200">
+  <button type="submit" class="{{template "btn_secondary"}} text-sm">Cari</button>
+</form>
+
+{{if .Data.Page.Items}}
+<ul class="mt-4 divide-y divide-slate-200 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+  {{range .Data.Page.Items}}
+  <li>
+    <a href="/app/pelanggan/{{.ID}}" class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
+      <div class="min-w-0">
+        <p class="truncate font-medium text-slate-900">{{.Name}}</p>
+        <p class="truncate text-sm text-slate-500">{{if .Phone}}{{telepon .Phone}}{{else}}Tanpa nomor{{end}}{{if .Company}} · {{.Company}}{{end}}</p>
+      </div>
+      <span class="text-slate-400" aria-hidden="true">›</span>
+    </a>
+  </li>
+  {{end}}
+</ul>
+<p class="mt-2 text-xs text-slate-500">{{.Data.Page.Total}} pelanggan</p>
+{{template "pagination" .Data.Pager}}
+{{else if .Data.Q}}
+<section class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center">
+  <h2 class="text-base font-semibold text-slate-900">Tidak ada pelanggan yang cocok</h2>
+  <p class="mt-1 text-sm text-slate-500">Coba kata kunci lain atau <a href="/app/pelanggan" class="font-medium text-teal-700 hover:underline">tampilkan semua</a>.</p>
+</section>
+{{else}}
+<section class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center">
+  <h2 class="text-base font-semibold text-slate-900">Belum ada pelanggan</h2>
+  <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500">Catat orang atau perusahaan yang menghubungi Anda. Satu pelanggan bisa punya beberapa prospek proyek.</p>
+  <a href="/app/pelanggan/baru" class="{{template "btn_primary"}} mt-4 inline-block text-sm">Tambah pelanggan pertama</a>
+</section>
+{{end}}
+{{end}}

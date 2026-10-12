@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true}]}'>
   <title>{{.Title}} · KerjaLancar</title>
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js" defer></script>
@@ -12,7 +13,7 @@
     <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
       <a href="/app" class="flex items-center gap-2 font-semibold text-teal-700">
         <span class="inline-block h-6 w-6 rounded-md bg-teal-600"></span>
-        <span class="truncate max-w-[12rem] sm:max-w-xs">{{.Workspace.Name}}</span>
+        <span id="workspace-name" class="truncate max-w-[12rem] sm:max-w-xs">{{.Workspace.Name}}</span>
       </a>
       <nav class="hidden sm:flex items-center gap-1 text-sm">
         {{template "navlinks" .}}
@@ -34,5 +35,7 @@
 
 {{define "navlinks"}}
 <a href="/app" class="rounded-lg px-3 py-1.5 {{if eq .Nav "beranda"}}bg-teal-50 text-teal-700 font-medium{{else}}text-slate-600 hover:bg-slate-100{{end}}">Beranda</a>
+<a href="/app/prospek" class="rounded-lg px-3 py-1.5 {{if eq .Nav "prospek"}}bg-teal-50 text-teal-700 font-medium{{else}}text-slate-600 hover:bg-slate-100{{end}}">Prospek</a>
+<a href="/app/pelanggan" class="rounded-lg px-3 py-1.5 {{if eq .Nav "pelanggan"}}bg-teal-50 text-teal-700 font-medium{{else}}text-slate-600 hover:bg-slate-100{{end}}">Pelanggan</a>
 <a href="/app/pengaturan" class="rounded-lg px-3 py-1.5 {{if eq .Nav "pengaturan"}}bg-teal-50 text-teal-700 font-medium{{else}}text-slate-600 hover:bg-slate-100{{end}}">Pengaturan</a>
 {{end}}

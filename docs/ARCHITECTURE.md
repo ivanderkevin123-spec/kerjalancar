@@ -89,8 +89,8 @@ Single repository, single deployable service. A monorepo toolchain (Turborepo, w
 - Go 1.27.2 (latest stable on go.dev, 2026-10-12; machine has 1.17.5; install method is the founder's choice, D-022)
 - `chi` v5 router on `net/http`; `html/template`; `log/slog` JSON logs; graceful shutdown; per-request timeouts
 - htmx 2.0.11 vendored as a pinned static file (D-021: not 4.0.0); Stimulus only if JS islands exceed two or three controllers, otherwise small vanilla modules; Tailwind CSS v4: `static/app.css` is a committed build artifact produced by the standalone CLI (`make css`) or the Node fallback (`make css-npm`, D-031); the Go build and CI never need Tailwind or Node
-- PostgreSQL 17 (`postgres:17-alpine` locally); `pgx/v5` v5.11.0; `sqlc` v1.31.1 typed queries from M2; `goose` v3.29.0 migrations (Provider API, embedded SQL); `chi` v5.3.2; `testify` v1.12.1
-- Sessions server-side in Postgres (`alexedwards/scs` v2.9.0 + postgresstore); Argon2id (`golang.org/x/crypto/argon2`); CSRF via `net/http.NewCrossOriginProtection` (confirmed: added in Go 1.25) with a double-submit token fallback for browsers without Fetch metadata
+- PostgreSQL 17 (`postgres:17-alpine` locally); `pgx/v5` v5.11.0 with hand-written queries in small store functions (`sqlc` deferred, D-029/D-040); `goose` v3.29.0 migrations (Provider API, embedded SQL, Postgres session lock so concurrent migrators serialise, D-041); `chi` v5.3.2; `testify` v1.12.1
+- Sessions server-side in Postgres (`alexedwards/scs` v2.9.0 + postgresstore); Argon2id (`golang.org/x/crypto/argon2`); CSRF via `net/http.NewCrossOriginProtection` (Go 1.25+; Fetch metadata with the standard library's `Origin`-header fallback, `BASE_URL` as trusted origin)
 - In-process rate limiting (single instance during pilots); error monitoring via Sentry Go SDK or GlitchTip [external service, needs approval]
 - Background jobs: none in v1 (reminders are queries). If daily digests are validated, add River (Postgres-backed), not Redis
 - PDF generation runs synchronously in the request (bounded by the 30 s timeout); no worker
@@ -106,15 +106,15 @@ cmd/server/            main: config, DB pool, router, graceful shutdown
 internal/
   auth/                users, sessions, password hashing, login rate limit
   workspace/           workspaces, memberships, roles (owner, staff), settings (time zone)
-  customer/            customers and contact notes
-  lead/                leads, stages, activities
+  customer/            customers (contacts): phone normalisation, validation, store (M3)
+  lead/                leads, statuses and transition rules, append-only activities, store (M3)
   quotation/           quotations, items, totals, share tokens, status
   invoice/             invoices, items, payments (DP / cicilan / pelunasan), balances
   followup/            tasks, due lists, completion
   template/            WhatsApp message templates, placeholder rendering, wa.me links
   dashboard/           read models for pipeline, receivables, today's list
   audit/               append-only activity events
-  money/               integer rupiah, quantity scale, rounding, formatting "Rp1.250.000"
+  money/               integer rupiah: ParseIDR / FormatIDR "Rp1.250.000" (M3); quantity scale and rounding (M5)
   db/                  sqlc output, migrations, test helpers
   web/                 chi router, middleware, handlers, templates, partials, static, Indonesian copy
 e2e/                   Playwright specs for critical flows
@@ -126,11 +126,15 @@ Each package exposes a small service API and owns its SQL. Packages do not impor
 
 - Every tenant table has `workspace_id NOT NULL` and `UNIQUE (workspace_id, id)`.
 - Child tables reference parents with composite foreign keys `(workspace_id, parent_id) → parent(workspace_id, id)`, so the database refuses a lead that points at another workspace's customer regardless of application bugs.
-- The current workspace comes from the session and membership, never from a form field or URL parameter beyond a slug that is re-checked against membership.
+- The current workspace is pinned in the session at login and re-verified against `memberships` on every request (`requireLogin`); it never comes from a form field or URL parameter. Handlers pass `currentWorkspace(ctx).ID` as the first argument of every store call; row ids from URLs are only ever combined with it.
 - Every repository function takes `workspaceID` first; all `sqlc` queries filter on it. A CI grep fails the build if a tenant table is queried without `workspace_id`.
 - Roles: `owner` (billing, members, delete) and `staff` (operate). Object-level checks are "row belongs to workspace", enforced by the query itself.
 - Cross-tenant test matrix: for every resource, workspace B attempts list, read, update, delete, and share-link access on workspace A's rows; all must return 404.
 - Postgres Row-Level Security is a Week 7 hardening candidate, not a v1 requirement.
+
+### 5.1 Activity history vs technical audit (D-036)
+
+Two separate records. `lead_activities` is the business history the owner reads on a lead: created, status changes (from, to, reason), notes, and which fields were edited (short old/new values; never the text of description or notes). It is append-only (database trigger) and extended by M4 (follow-ups) and M5 (quotations). The technical audit is a structured log line per mutation (`action`, `user_id`, `workspace_id`, row ids, `request_id`) with no content, enough to investigate "who changed what, when" during pilots; a database-backed audit table is an M7 decision.
 
 ## 6. Money and quantities
 
@@ -148,7 +152,7 @@ Each package exposes a small service API and owns its SQL. Packages do not impor
 
 ## 8. Security baseline (expanded in `THREAT_MODEL.md` in Phase B)
 
-HTTPS only; `Secure`, `HttpOnly`, `SameSite=Lax` cookies; Argon2id; login and share-link rate limits; CSRF protection; strict `html/template` escaping; no mass assignment (explicit struct mapping per form); server-side validation with Indonesian error messages; share tokens 128-bit random, revocable; secrets only from environment; no secrets in git; `govulncheck` in CI; audit events for create/update/delete of customers, leads, quotations, invoices, payments, members; no personal data in logs.
+HTTPS only; `Secure`, `HttpOnly`, `SameSite=Lax` cookies; Argon2id; login and share-link rate limits keyed on the client address (rightmost `X-Forwarded-For` only behind a trusted proxy, D-042); CSRF protection; strict `html/template` escaping; baseline headers (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`) and `Cache-Control: no-store` on HTML; 64 KiB form bodies; no mass assignment (explicit struct mapping per form); server-side validation with Indonesian error messages; share tokens 128-bit random, revocable; secrets only from environment; no secrets in git; `govulncheck` in CI; audit events for create/update/delete of customers, leads, quotations, invoices, payments, members; no personal data in logs.
 
 ## 9. Data retention and backup (outline)
 

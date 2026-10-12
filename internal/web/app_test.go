@@ -17,7 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"kerjalancar/internal/auth"
+	"kerjalancar/internal/customer"
 	"kerjalancar/internal/db/testdb"
+	"kerjalancar/internal/lead"
 	"kerjalancar/internal/web"
 	"kerjalancar/internal/workspace"
 )
@@ -42,6 +44,8 @@ func newApp(t *testing.T, mutate ...func(d *web.Deps)) *testApp {
 		Sessions:         web.NewSessionManager(pool, false, 0),
 		Auth:             auth.NewService(pool, lightArgon),
 		Workspaces:       workspace.NewStore(pool),
+		Customers:        customer.NewStore(pool),
+		Leads:            lead.NewStore(pool),
 		Templates:        tmpl,
 		RegistrationOpen: true,
 		BaseURL:          "http://example.com",

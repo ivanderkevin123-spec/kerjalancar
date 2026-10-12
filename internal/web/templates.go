@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"kerjalancar/internal/auth"
+	"kerjalancar/internal/customer"
+	"kerjalancar/internal/lead"
+	"kerjalancar/internal/money"
 	"kerjalancar/internal/workspace"
 )
 
@@ -22,11 +25,81 @@ var staticFS embed.FS
 
 // pageLayouts maps each page template to the layout that wraps it.
 var pageLayouts = map[string]string{
-	"masuk":      "auth",
-	"daftar":     "auth",
-	"error":      "auth",
-	"beranda":    "app",
-	"pengaturan": "app",
+	"masuk":            "auth",
+	"daftar":           "auth",
+	"error":            "auth",
+	"beranda":          "app",
+	"pengaturan":       "app",
+	"pelanggan_daftar": "app",
+	"pelanggan_form":   "app",
+	"pelanggan_detail": "app",
+	"prospek_daftar":   "app",
+	"prospek_form":     "app",
+	"prospek_detail":   "app",
+}
+
+var monthsID = [...]string{"", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"}
+
+// formatDateID renders a date as "20 Okt 2026".
+func formatDateID(t time.Time) string {
+	return fmt.Sprintf("%d %s %d", t.Day(), monthsID[t.Month()], t.Year())
+}
+
+// templateFuncs are the display helpers available to every template.
+var templateFuncs = template.FuncMap{
+	// rupiah formats an optional amount; nil renders as "".
+	"rupiah": func(v *int64) string {
+		if v == nil {
+			return ""
+		}
+		return money.FormatIDR(*v)
+	},
+	"rupiahInt": money.FormatIDR,
+	"telepon":   customer.DisplayPhone,
+	// tanggal renders an optional date (stored as UTC midnight).
+	"tanggal": func(t *time.Time) string {
+		if t == nil {
+			return ""
+		}
+		return formatDateID(*t)
+	},
+	// waktu renders a timestamp in the workspace zone: "12 Okt 2026, 14.05".
+	"waktu": func(t time.Time, loc *time.Location) string {
+		if loc != nil {
+			t = t.In(loc)
+		}
+		return formatDateID(t) + t.Format(", 15.04")
+	},
+	// lewat reports whether a follow-up date is before today in the workspace zone.
+	"lewat": func(d *time.Time, loc *time.Location) bool {
+		if d == nil {
+			return false
+		}
+		if loc == nil {
+			loc = time.UTC
+		}
+		now := time.Now().In(loc)
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+		return d.Before(today)
+	},
+	"badgeClass": func(st lead.Status) string {
+		switch st {
+		case lead.StatusDihubungi:
+			return "bg-sky-50 text-sky-700 ring-sky-200"
+		case lead.StatusSurvei:
+			return "bg-amber-50 text-amber-700 ring-amber-200"
+		case lead.StatusPenawaran:
+			return "bg-teal-50 text-teal-700 ring-teal-200"
+		case lead.StatusMenang:
+			return "bg-emerald-50 text-emerald-700 ring-emerald-200"
+		case lead.StatusKalah:
+			return "bg-rose-50 text-rose-700 ring-rose-200"
+		}
+		return "bg-slate-100 text-slate-700 ring-slate-200"
+	},
+	"statuses":     func() []lead.Status { return lead.Statuses },
+	"sources":      func() []lead.Source { return lead.Sources },
+	"projectTypes": func() []lead.ProjectType { return lead.ProjectTypes },
 }
 
 // Templates holds one parsed template set per page.
@@ -38,7 +111,7 @@ type Templates struct {
 func LoadTemplates() (*Templates, error) {
 	t := &Templates{pages: make(map[string]*template.Template, len(pageLayouts))}
 	for page, layout := range pageLayouts {
-		tmpl, err := template.New(page).ParseFS(templateFS,
+		tmpl, err := template.New(page).Funcs(templateFuncs).ParseFS(templateFS,
 			"templates/layouts/"+layout+".html",
 			"templates/partials/*.html",
 			"templates/pages/"+page+".html",
@@ -66,6 +139,10 @@ type View struct {
 	Heading          string
 	Message          string
 	Year             int
+	// Loc is the workspace time zone for rendering timestamps.
+	Loc *time.Location
+	// Data holds the page-specific view model (one struct type per page).
+	Data any
 }
 
 func newView(title string) *View {

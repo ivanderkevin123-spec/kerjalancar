@@ -13,11 +13,15 @@ help: ## Show targets
 run: ## Run the server (loads .env if present)
 	@$(LOAD_ENV) $(GO) run ./cmd/server
 
+# -p 2: at most two test binaries share the single Postgres at a time. All eight in
+# parallel starve the database container on a busy laptop (connection timeouts).
+TEST_FLAGS ?= -race -count=1 -p 2
+
 test: ## Unit and database tests (database tests skip when TEST_DATABASE_URL is unset)
-	@$(LOAD_ENV) $(GO) test -race -count=1 ./...
+	@$(LOAD_ENV) $(GO) test $(TEST_FLAGS) ./...
 
 test-db: ## Same as test but fails if the database is not reachable (used in CI)
-	@$(LOAD_ENV) REQUIRE_DB=1 $(GO) test -race -count=1 ./...
+	@$(LOAD_ENV) REQUIRE_DB=1 $(GO) test $(TEST_FLAGS) ./...
 
 vet: ## go vet
 	$(GO) vet ./...

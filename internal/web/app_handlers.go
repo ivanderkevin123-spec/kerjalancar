@@ -4,10 +4,23 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 	"unicode/utf8"
 
+	"kerjalancar/internal/lead"
 	"kerjalancar/internal/workspace"
 )
+
+// location resolves the workspace time zone, falling back to Asia/Jakarta.
+func location(name string) *time.Location {
+	if loc, err := time.LoadLocation(name); err == nil && name != "" {
+		return loc
+	}
+	if loc, err := time.LoadLocation("Asia/Jakarta"); err == nil {
+		return loc
+	}
+	return time.FixedZone("WIB", 7*3600)
+}
 
 const msgWorkspaceSaved = "Nama usaha tersimpan."
 
@@ -18,12 +31,29 @@ func (s *server) appView(r *http.Request, title, nav string) *View {
 	v.Nav = nav
 	v.User = &user
 	v.Workspace = &ws
+	v.Loc = location(ws.Timezone)
 	return v
 }
 
+type berandaData struct {
+	Summary lead.Summary
+	Total   int
+}
+
 func (s *server) getBeranda(w http.ResponseWriter, r *http.Request) {
+	ws := currentWorkspace(r.Context())
+	sum, err := s.Leads.Summary(r.Context(), ws.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	total := 0
+	for _, n := range sum.ByStatus {
+		total += n
+	}
 	v := s.appView(r, "Beranda", "beranda")
 	v.Flash = s.Sessions.PopString(r.Context(), sessionFlashKey)
+	v.Data = berandaData{Summary: sum, Total: total}
 	s.render(w, r, http.StatusOK, "beranda", v)
 }
 
@@ -86,9 +116,7 @@ func (s *server) postPengaturan(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, hx bool, v *View) {
 	if hx {
-		if err := s.Templates.Fragment(w, http.StatusOK, "pengaturan", "pengaturan_form", v); err != nil {
-			s.Logger.Error("render fragment", "err", err)
-		}
+		s.fragment(w, r, "pengaturan", "pengaturan_form", v)
 		return
 	}
 	s.render(w, r, http.StatusOK, "pengaturan", v)

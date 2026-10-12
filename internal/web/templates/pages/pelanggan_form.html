@@ -1,0 +1,36 @@
+{{define "content"}}
+<h1 class="text-xl font-semibold text-slate-900">{{.Data.Title}}</h1>
+<p class="mt-1 text-sm text-slate-500">Hanya nama yang wajib. Nomor WhatsApp memudahkan follow-up nanti.</p>
+<form method="post" action="{{.Data.Action}}" class="mt-6 space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" novalidate>
+  <div>
+    <label for="name" class="block text-sm font-medium text-slate-700">Nama <span class="text-red-600">*</span></label>
+    <input id="name" name="name" type="text" required maxlength="150" autocomplete="off" value="{{.Form.name}}" class="{{template "input_class"}}">
+    {{template "field_error" .Errors.name}}
+  </div>
+  <div>
+    <label for="phone" class="block text-sm font-medium text-slate-700">Nomor WhatsApp / telepon</label>
+    <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="off" maxlength="25" placeholder="0812-3456-7890" value="{{.Form.phone}}" class="{{template "input_class"}}">
+    {{template "field_error" .Errors.phone}}
+    {{with .Data.Duplicate}}<p class="mt-1 text-sm"><a href="/app/pelanggan/{{.ID}}" class="font-medium text-teal-700 hover:underline">Buka pelanggan {{.Name}}</a></p>{{end}}
+  </div>
+  <div>
+    <label for="email" class="block text-sm font-medium text-slate-700">Email <span class="font-normal text-slate-400">(opsional)</span></label>
+    <input id="email" name="email" type="email" inputmode="email" autocomplete="off" maxlength="254" value="{{.Form.email}}" class="{{template "input_class"}}">
+    {{template "field_error" .Errors.email}}
+  </div>
+  <div>
+    <label for="company" class="block text-sm font-medium text-slate-700">Perusahaan <span class="font-normal text-slate-400">(opsional)</span></label>
+    <input id="company" name="company" type="text" autocomplete="organization" maxlength="100" value="{{.Form.company}}" class="{{template "input_class"}}">
+    {{template "field_error" .Errors.company}}
+  </div>
+  <div>
+    <label for="notes" class="block text-sm font-medium text-slate-700">Catatan <span class="font-normal text-slate-400">(opsional)</span></label>
+    <textarea id="notes" name="notes" rows="3" maxlength="2000" class="{{template "input_class"}}">{{.Form.notes}}</textarea>
+    {{template "field_error" .Errors.notes}}
+  </div>
+  <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <a href="{{.Data.Cancel}}" class="{{template "btn_secondary"}} text-center">Batal</a>
+    <button type="submit" class="{{template "btn_primary"}}">Simpan</button>
+  </div>
+</form>
+{{end}}

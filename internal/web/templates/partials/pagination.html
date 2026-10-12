@@ -1,0 +1,7 @@
+{{define "pagination"}}{{if gt .Pages 1}}
+<nav class="mt-4 flex items-center justify-between text-sm text-slate-600" aria-label="Halaman">
+  {{if .Prev}}<a href="{{.Prev}}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-100">‹ Sebelumnya</a>{{else}}<span></span>{{end}}
+  <span>Halaman {{.Page}} dari {{.Pages}}</span>
+  {{if .Next}}<a href="{{.Next}}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-100">Berikutnya ›</a>{{else}}<span></span>{{end}}
+</nav>
+{{end}}{{end}}

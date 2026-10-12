@@ -1,0 +1,104 @@
+{{define "content"}}
+{{with .Data.Lead}}
+<div class="flex items-start justify-between gap-3">
+  <div class="min-w-0">
+    <p class="text-sm text-slate-500"><a href="/app/prospek" class="hover:underline">Prospek</a> ›</p>
+    <h1 class="text-xl font-semibold text-slate-900">{{.Title}}</h1>
+    <p class="mt-1 text-sm text-slate-600"><a href="/app/pelanggan/{{.CustomerID}}" class="font-medium text-teal-700 hover:underline">{{.CustomerName}}</a>{{if .CustomerPhone}} · <a href="tel:{{.CustomerPhone}}" class="hover:underline">{{telepon .CustomerPhone}}</a>{{end}}</p>
+  </div>
+  <div class="flex shrink-0 flex-col items-end gap-2">
+    {{template "prospek_badge" $}}
+    <a href="/app/prospek/{{.ID}}/ubah" class="{{template "btn_secondary"}} text-sm">Ubah</a>
+  </div>
+</div>
+{{end}}
+
+{{template "prospek_meta" .}}
+
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+  {{template "prospek_status" .}}
+  {{template "prospek_catatan" .}}
+</div>
+
+<section class="mt-6">
+  <h2 class="text-base font-semibold text-slate-900">Riwayat</h2>
+  <div id="aktivitas">{{template "prospek_aktivitas" .}}</div>
+</section>
+{{end}}
+
+{{define "prospek_badge"}}<span id="lead-badge">{{template "status_badge" .Data.Lead.Status}}</span>{{end}}
+
+{{define "prospek_meta"}}
+<dl id="lead-meta" {{if .Data.Oob}}hx-swap-oob="true" {{end}}class="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-slate-200 sm:grid-cols-4">
+  {{with .Data.Lead}}
+  <div><dt class="text-slate-500">Estimasi nilai</dt><dd class="font-medium text-slate-900">{{if .EstimatedValue}}{{rupiah .EstimatedValue}}{{else}}<span class="text-slate-400">Belum ada</span>{{end}}</dd></div>
+  <div><dt class="text-slate-500">Jenis proyek</dt><dd class="font-medium text-slate-900">{{if .ProjectType}}{{.ProjectType.Label}}{{else}}<span class="text-slate-400">–</span>{{end}}</dd></div>
+  <div><dt class="text-slate-500">Sumber</dt><dd class="font-medium text-slate-900">{{if .Source}}{{.Source.Label}}{{else}}<span class="text-slate-400">–</span>{{end}}</dd></div>
+  <div><dt class="text-slate-500">Follow-up berikutnya</dt><dd class="font-medium {{if lewat .NextFollowUpOn $.Loc}}text-rose-600{{else}}text-slate-900{{end}}">{{if .NextFollowUpOn}}{{tanggal .NextFollowUpOn}}{{if lewat .NextFollowUpOn $.Loc}} (terlewat){{end}}{{else}}<span class="text-slate-400">Belum dijadwalkan</span>{{end}}</dd></div>
+  {{if .LostReason}}<div class="col-span-2 sm:col-span-4"><dt class="text-slate-500">Alasan kalah</dt><dd class="text-slate-900">{{.LostReason}}</dd></div>{{end}}
+  {{if .Description}}<div class="col-span-2 sm:col-span-4"><dt class="text-slate-500">Deskripsi kebutuhan</dt><dd class="whitespace-pre-line text-slate-900">{{.Description}}</dd></div>{{end}}
+  {{if .Notes}}<div class="col-span-2 sm:col-span-4"><dt class="text-slate-500">Catatan internal</dt><dd class="whitespace-pre-line text-slate-900">{{.Notes}}</dd></div>{{end}}
+  <div class="col-span-2 text-xs text-slate-400 sm:col-span-4">Dicatat {{waktu .CreatedAt $.Loc}} · Status terakhir berubah {{waktu .StatusChangedAt $.Loc}}</div>
+  {{end}}
+</dl>
+{{end}}
+
+{{define "prospek_status"}}
+<form id="status-panel" hx-post="/app/prospek/{{.Data.Lead.ID}}/status" hx-target="this" hx-swap="outerHTML" method="post" action="/app/prospek/{{.Data.Lead.ID}}/status" class="space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" novalidate>
+  <h2 class="text-sm font-semibold text-slate-900">Ubah status</h2>
+  {{if .Data.StatusMsg}}<div role="status" class="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">{{.Data.StatusMsg}}</div>{{end}}
+  {{if .Data.StatusErr}}<div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{.Data.StatusErr}}</div>{{end}}
+  <div>
+    <label for="status" class="block text-sm font-medium text-slate-700">Status</label>
+    <select id="status" name="status" class="{{template "input_class"}}">
+      {{range statuses}}<option value="{{.}}" {{if eq (print .) $.Form.status}}selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+  </div>
+  <div>
+    <label for="lost_reason" class="block text-sm font-medium text-slate-700">Alasan kalah <span class="font-normal text-slate-400">(opsional, hanya untuk status Kalah)</span></label>
+    <textarea id="lost_reason" name="lost_reason" rows="2" maxlength="500" class="{{template "input_class"}}">{{.Form.lost_reason}}</textarea>
+  </div>
+  <button type="submit" class="{{template "btn_primary"}} w-full sm:w-auto"><span class="htmx-indicator-hidden">Simpan status</span></button>
+</form>
+{{end}}
+
+{{define "prospek_catatan"}}
+<form id="catatan-form" hx-post="/app/prospek/{{.Data.Lead.ID}}/catatan" hx-target="this" hx-swap="outerHTML" method="post" action="/app/prospek/{{.Data.Lead.ID}}/catatan" class="space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" novalidate>
+  <h2 class="text-sm font-semibold text-slate-900">Tambah catatan</h2>
+  {{if .Data.NoteMsg}}<div role="status" class="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">{{.Data.NoteMsg}}</div>{{end}}
+  <div>
+    <label for="body" class="sr-only">Catatan</label>
+    <textarea id="body" name="body" rows="3" maxlength="2000" required placeholder="Contoh: sudah kirim foto referensi, tunggu jawaban" {{if .Data.NoteMsg}}autofocus{{end}} class="{{template "input_class"}}">{{.Form.body}}</textarea>
+    {{template "field_error" .Data.NoteErr}}
+  </div>
+  <button type="submit" class="{{template "btn_secondary"}} w-full sm:w-auto"><span class="htmx-indicator-hidden">Simpan catatan</span></button>
+</form>
+{{end}}
+
+{{define "prospek_aktivitas"}}
+{{if .Data.Activities}}
+<ol class="mt-3 space-y-3">
+  {{range .Data.Activities}}
+  <li class="rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-slate-200">
+    <p class="font-medium text-slate-900">{{.Describe}}</p>
+    {{if .Body}}<p class="mt-1 whitespace-pre-line text-slate-700">{{.Body}}</p>{{end}}
+    <p class="mt-1 text-xs text-slate-400">{{waktu .CreatedAt $.Loc}}{{if .ActorName}} · {{.ActorName}}{{end}}</p>
+  </li>
+  {{end}}
+</ol>
+{{else}}
+<p class="mt-3 text-sm text-slate-500">Belum ada riwayat.</p>
+{{end}}
+{{end}}
+
+{{define "prospek_status_oob"}}
+{{template "prospek_status" .}}
+<span id="lead-badge" hx-swap-oob="true">{{template "status_badge" .Data.Lead.Status}}</span>
+{{template "prospek_meta" .}}
+<div id="aktivitas" hx-swap-oob="true">{{template "prospek_aktivitas" .}}</div>
+{{end}}
+
+{{define "prospek_catatan_oob"}}
+{{template "prospek_catatan" .}}
+<div id="aktivitas" hx-swap-oob="true">{{template "prospek_aktivitas" .}}</div>
+{{end}}

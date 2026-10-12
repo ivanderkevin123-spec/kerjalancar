@@ -1,0 +1,104 @@
+{{define "content"}}
+<h1 class="text-xl font-semibold text-slate-900">{{.Data.Title}}</h1>
+<p class="mt-1 text-sm text-slate-500">{{if .Data.Edit}}Pelanggan prospek ini tidak berubah; ubah data pelanggan dari halamannya.{{else}}Cukup nama pelanggan dan nama proyek; sisanya bisa dilengkapi nanti.{{end}}</p>
+<form method="post" action="{{.Data.Action}}" class="mt-6 space-y-6" novalidate>
+  {{if not .Data.Edit}}
+  <fieldset class="space-y-3 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <legend class="text-sm font-semibold text-slate-900">Pelanggan</legend>
+    <div class="flex flex-wrap gap-4 text-sm">
+      <label class="inline-flex items-center gap-2"><input type="radio" name="customer_mode" value="baru" {{if eq .Data.Mode "baru"}}checked{{end}} class="h-4 w-4 accent-teal-600" data-mode="baru"> Pelanggan baru</label>
+      <label class="inline-flex items-center gap-2"><input type="radio" name="customer_mode" value="ada" {{if eq .Data.Mode "ada"}}checked{{end}} class="h-4 w-4 accent-teal-600" data-mode="ada"> Pelanggan yang sudah ada</label>
+    </div>
+    <div data-pane="baru" class="space-y-3 {{if ne .Data.Mode "baru"}}hidden{{end}}">
+      <div>
+        <label for="customer_name" class="block text-sm font-medium text-slate-700">Nama pelanggan <span class="text-red-600">*</span></label>
+        <input id="customer_name" name="customer_name" type="text" maxlength="150" autocomplete="off" value="{{.Form.customer_name}}" class="{{template "input_class"}}">
+        {{template "field_error" .Errors.customer_name}}
+      </div>
+      <div>
+        <label for="customer_phone" class="block text-sm font-medium text-slate-700">Nomor WhatsApp <span class="font-normal text-slate-400">(opsional)</span></label>
+        <input id="customer_phone" name="customer_phone" type="tel" inputmode="tel" maxlength="25" autocomplete="off" placeholder="0812-3456-7890" value="{{.Form.customer_phone}}" class="{{template "input_class"}}">
+        {{template "field_error" .Errors.customer_phone}}
+      </div>
+    </div>
+    <div data-pane="ada" class="{{if ne .Data.Mode "ada"}}hidden{{end}}">
+      <label for="customer_id" class="block text-sm font-medium text-slate-700">Pilih pelanggan</label>
+      <select id="customer_id" name="customer_id" class="{{template "input_class"}}">
+        <option value="">— pilih —</option>
+        {{range .Data.Customers}}<option value="{{.ID}}" {{if eq (print .ID) $.Data.CustomerID}}selected{{end}}>{{.Name}}{{if .Phone}} · {{telepon .Phone}}{{end}}</option>{{end}}
+      </select>
+      {{template "field_error" .Errors.customer_id}}
+      {{if not .Data.Customers}}<p class="mt-1 text-sm text-slate-500">Belum ada pelanggan tersimpan; pilih "Pelanggan baru".</p>{{end}}
+    </div>
+  </fieldset>
+  {{end}}
+
+  <fieldset class="space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <legend class="text-sm font-semibold text-slate-900">Proyek</legend>
+    <div>
+      <label for="title" class="block text-sm font-medium text-slate-700">Nama proyek / kebutuhan <span class="text-red-600">*</span></label>
+      <input id="title" name="title" type="text" required maxlength="150" autocomplete="off" placeholder="Contoh: Renovasi dapur" value="{{.Form.title}}" class="{{template "input_class"}}">
+      {{template "field_error" .Errors.title}}
+    </div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <label for="project_type" class="block text-sm font-medium text-slate-700">Jenis proyek</label>
+        <select id="project_type" name="project_type" class="{{template "input_class"}}">
+          <option value="">— pilih —</option>
+          {{range projectTypes}}<option value="{{.}}" {{if eq (print .) $.Form.project_type}}selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+        {{template "field_error" .Errors.project_type}}
+      </div>
+      <div>
+        <label for="source" class="block text-sm font-medium text-slate-700">Sumber prospek</label>
+        <select id="source" name="source" class="{{template "input_class"}}">
+          <option value="">— pilih —</option>
+          {{range sources}}<option value="{{.}}" {{if eq (print .) $.Form.source}}selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+        {{template "field_error" .Errors.source}}
+      </div>
+      <div>
+        <label for="estimated_value" class="block text-sm font-medium text-slate-700">Estimasi nilai (Rp)</label>
+        <input id="estimated_value" name="estimated_value" type="text" inputmode="numeric" autocomplete="off" placeholder="15.000.000" value="{{.Form.estimated_value}}" class="{{template "input_class"}}">
+        {{template "field_error" .Errors.estimated_value}}
+      </div>
+      <div>
+        <label for="next_follow_up_on" class="block text-sm font-medium text-slate-700">Follow-up berikutnya</label>
+        <input id="next_follow_up_on" name="next_follow_up_on" type="date" value="{{.Form.next_follow_up_on}}" class="{{template "input_class"}}">
+        {{template "field_error" .Errors.next_follow_up_on}}
+      </div>
+    </div>
+    <div>
+      <label for="description" class="block text-sm font-medium text-slate-700">Deskripsi kebutuhan</label>
+      <textarea id="description" name="description" rows="3" maxlength="2000" class="{{template "input_class"}}">{{.Form.description}}</textarea>
+      {{template "field_error" .Errors.description}}
+    </div>
+    <div>
+      <label for="notes" class="block text-sm font-medium text-slate-700">Catatan internal</label>
+      <textarea id="notes" name="notes" rows="2" maxlength="2000" class="{{template "input_class"}}">{{.Form.notes}}</textarea>
+      {{template "field_error" .Errors.notes}}
+    </div>
+  </fieldset>
+
+  <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <a href="{{.Data.Cancel}}" class="{{template "btn_secondary"}} text-center">Batal</a>
+    <button type="submit" class="{{template "btn_primary"}}">Simpan</button>
+  </div>
+</form>
+{{if not .Data.Edit}}
+<script>
+  // Show only the chosen customer pane; without JavaScript both panes stay visible and the server validates by mode.
+  (function () {
+    var radios = document.querySelectorAll('input[name="customer_mode"]');
+    function sync() {
+      radios.forEach(function (r) {
+        var pane = document.querySelector('[data-pane="' + r.value + '"]');
+        if (pane) pane.classList.toggle('hidden', !r.checked);
+      });
+    }
+    radios.forEach(function (r) { r.addEventListener('change', sync); });
+    sync();
+  })();
+</script>
+{{end}}
+{{end}}

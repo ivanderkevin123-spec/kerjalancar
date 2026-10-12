@@ -1,69 +1,89 @@
 # Project Status
 
-Updated: 2026-10-12 (night, after Milestone 2)
+Updated: 2026-10-12 (evening, after Milestone 3)
 
 ## Current phase
 
-Build-first MVP (D-019). **Milestone 2 (authentication, workspace, responsive UI) is implemented and tested on branch `m2-auth-workspace`**; the review fix pass, built CSS, and docs are in the working tree awaiting the founder's approval to commit and merge. Next: Milestone 3 (customers, leads, pipeline, activity). Validation track continues in parallel; Gate G1 checkpoint remains Sunday 2026-10-18.
+Build-first MVP (D-019). Milestone 2 is merged into `main` (`c9fba63`). **Milestone 3 (customers, leads, pipeline, activity history) is implemented and tested on branch `m3-customers-leads`; the whole change set is uncommitted and awaits the founder's approval to commit.** Next: Milestone 4 (follow-ups, "Hari ini" list, WhatsApp click-to-chat). Validation track continues in parallel; Gate G1 checkpoint remains Sunday 2026-10-18.
 
 ## What works now (try it locally)
 
-- Register at `/daftar` (name, business name, e-mail, password; optional invitation code), land on an honest empty dashboard at `/app`, rename the business at `/app/pengaturan` (htmx fragment), log out at `Keluar`, log in again at `/masuk`.
-- Responsive layout: header and side nav on desktop, bottom nav on phones; Indonesian copy; validation, success, empty, 404/403/429/500 states.
-- Security: Argon2id (64 MiB, t=3, p=2) with per-hash parameters; server-side sessions in Postgres with token rotation on login and destruction on logout; cookies HttpOnly, SameSite=Lax, Secure in production; CSRF via `net/http.CrossOriginProtection`; rate limits per IP and per e-mail; client IP from headers only with `TRUSTED_PROXY=true`; no credentials or tokens in logs.
+- Dashboard (`/app`): active lead count, estimated pipeline value (labelled as an estimate), counts per status, two shortcuts; an honest empty state before the first lead.
+- Record a lead (`/app/prospek/baru`) in one screen: new customer (name, optional WhatsApp number) or an existing one, project title, type, source, estimated value in rupiah, follow-up date, description. A known number pre-selects the existing customer instead of duplicating it.
+- Lead detail: status select with the pipeline rules (D-035), optional reason when lost, notes, and the full history (created, status changes with reasons, notes, which fields were edited). Status and note forms answer in place through htmx; the badge, the follow-up date and the timeline update without a reload and focus returns to the note box.
+- Pipeline list (`/app/prospek`): status chips with counts (active by default; won and lost stay visible under their chip or "Semua"), search by project or customer, sort by newest, highest estimate or nearest follow-up, 25 per page.
+- Customers (`/app/pelanggan`): list with search by name, number (any format) or company, add, edit, detail with that customer's leads and a "Catat prospek" shortcut.
+- Phone numbers are stored as E.164 and shown as `0812-3456-7890`; money is integer rupiah; dates and times render in the workspace zone.
+- Security: every query bound to the session's workspace (pinned at login, re-verified per request); foreign ids answer 404; composite foreign keys and CHECK constraints in the schema; append-only activities (trigger); CSRF on every POST; 64 KiB body limit; security headers; `no-store` on pages; rate limits keyed on the real client address; technical audit log lines with ids only.
 
 ```bash
 cp .env.example .env            # once
 docker compose up -d db
 export PATH=$HOME/sdk/go1.27.2/bin:$PATH
-make migrate && make run        # http://localhost:8080 (takes ~2 s to start)
-make test-db                    # full suite against Postgres
+make migrate && make run        # http://localhost:8080 → /daftar, then /app/prospek/baru
+make test-db                    # full suite against Postgres (two packages at a time)
 ```
 
-## Commits on `m2-auth-workspace` (from `main` 0267e2d)
+## Change set on `m3-customers-leads` (uncommitted, from `main` c9fba63)
 
-`81b3792` Argon2id hashing, plan, decisions, htmx · `73e2821` schema 00002, auth service, workspace store · `442dbe5` registration config · `c6f4afc` web layer · `7b0cc11` server wiring, Makefile targets.
-
-Uncommitted (awaiting approval): review fixes (`internal/web/router.go`, `templates.go`, `review_fix_test.go`, `internal/db/migrate_test.go`), built `internal/web/static/app.css`, `.gitignore` (node_modules symlink), `Makefile` (`css-npm`), docs (`DEVELOPMENT`, `MVP_PLAN`, `ARCHITECTURE`, `DECISIONS` D-031/D-032, this file).
+| Area | Files |
+|---|---|
+| Schema | `internal/db/migrations/00003_customers_leads_activities.sql` (customers, leads, lead_activities, indexes, append-only trigger); `migrate_test.go` expects 3 migrations |
+| Domain | `internal/money` (ParseIDR/FormatIDR), `internal/customer` (phone normalisation, validation, store), `internal/lead` (statuses, transitions, validation, activities, store with transactions) |
+| Web | `customer_handlers.go`, `lead_handlers.go`, `listing.go` (pagination), `audit.go`; templates `pelanggan_*`, `prospek_*`, `beranda`, partials `pagination`, `status_badge`, `input`; nav in `layouts/app.html`; `templates.go` (page set, display funcs); routes in `router.go`; wiring in `cmd/server/main.go` (+ embedded tzdata); rebuilt `static/app.css` |
+| M2 review fixes (D-042) | `middleware.go` (client IP, headers, no-store, body limit), `router.go` (LimitBy, scs ErrorFunc), `pages.go` (HX-Retarget, 413, fragment 500), `authz.go` + `session.go` + `auth_handlers.go` (pinned workspace, membership loss), layouts (htmx-config meta), `pengaturan.html` (header name OOB) |
+| Infrastructure | `internal/db/migrate.go` (goose Postgres session lock, D-041), `testdb.go` (connection retry), `Makefile` (`-p 2`), `go mod tidy` |
+| Tests | `money_test`, `phone_test`, customer `store_test`, lead `lead_test` + `store_test`, web `hardening_test` (11), `customer_web_test` (8), `lead_web_test` (11), `tenant_matrix_test`, `perf_test`, `helpers_test` |
+| Docs | plan `docs/superpowers/plans/2026-10-12-m3-customers-leads.md`; `DECISIONS` D-033..D-042; `ARCHITECTURE` §3, §4, §5, §5.1, §8; `RISK_REGISTER` R-18..R-20; `DEVELOPMENT`; `MVP_PLAN` M3 status; this file |
 
 ## Tests executed (2026-10-12, Go 1.27.2 darwin/arm64, Postgres 17 in Docker)
 
 | Command | Result |
 |---|---|
-| `make test-db` (`go test -race -count=1 ./...`, `REQUIRE_DB=1`) | 6 packages ok; **58 tests passed, 0 failed, 0 skipped** (M1 regression included) |
-| M2 coverage | registration/login/logout flow; wrong password and unknown e-mail give one message; validation copy; duplicate e-mail generic; registration closed → 404; invitation code; cookie attributes (HttpOnly, SameSite=Lax, Path, Secure when configured); session rotation on login and invalidation after rotation and logout; CSRF 403 on `Sec-Fetch-Site: cross-site`; 429 per e-mail (5 login / 10 registration) and per IP (10); unauthenticated `/app` → 303 `/masuk`; cross-workspace rename with another workspace's id leaves it untouched; htmx fragment vs full page; 404 page; static assets cached, no listing, no source; migrations 1+2 on the existing database and on a fresh database (4 concurrent migrators) |
-| `go vet ./...`, `gofmt -l` | clean |
-| `govulncheck ./...` | GO-2026-5932 in `golang.org/x/crypto` v0.58.0 is module-level only (no reachable symbol), no fix released; re-check at M3 |
-| `make lint` | `go vet` only (golangci-lint not installed; CI runs v2.14.0) |
-| Live check with curl | `/` → 303; `/masuk` 200; register → 303 `/app`; dashboard shows name, business, empty state, success flash; settings fragment 200 "Nama usaha tersimpan."; cross-origin POST 403; 6th wrong login 429; logout → `/app` 303; `app.css` 15,903 B; 404 page; server log has no password, token, or query string |
+| `REQUIRE_DB=1 go test -race -count=1 -p 1 ./...` | 9 packages ok; **125 tests passed, 0 failed, 0 skipped** (M1 + M2 regression included) in about 40 s; re-run after the review fixes |
+| Same with the default `-p 8` | Twice failed with `ping database: context deadline exceeded` while the laptop ran an iOS simulator, Chrome, the dev server and a reviewer agent (load average 40; the Postgres container was starved). Every package passes on its own. `make test` now uses `-p 2` and the test harness retries the first connection for up to 60 s |
+| M3 coverage | rupiah parsing/formatting table; phone normalisation table; customer create/get/update/search/pagination/clamping, duplicate phone per workspace, cross-workspace read and write refused, alphabetical `All`; lead transition rules, validation messages, activity descriptions; lead create with existing or inline customer (one transaction, nothing left behind on failure), foreign customer refused, status rules incl. follow-up default and reason handling, notes, update diff, append-only trigger, cross-workspace matrix at store level, list filters/search/sort/pagination, summary; web: every page renders, empty and error states, validation keeps input, duplicate phone pre-selects the customer, htmx fragments vs full pages for status and note, OOB swaps, dashboard summary, bad ids → 404, audit lines without content; tenant matrix over every customer/lead route (GET and POST, plain and htmx) plus unauthenticated → 303; 200-lead pipeline list timing |
+| M2 review fixes coverage | error pages reach htmx clients; limiter keys on forwarded address only behind a trusted proxy; security headers and `no-store`; 413 on oversized body; session store failure → Indonesian 500 page; membership removed → logout; header name follows an htmx rename; CSRF over every state-changing route (cross-site, foreign Origin, trusted origin); passwords never in logs; expired session → login; pinned workspace |
+| Pipeline list of 200 leads | 16 ms worst of 5 requests under `-race` (sequential run); 87 ms without `-race` while the machine was loaded (MVP target < 300 ms) |
+| `gofmt -l cmd internal`, `go vet ./...`, `git diff --check` | clean |
+| govulncheck (v1.9.0, database fetched 2026-10-12) | 0 vulnerabilities in called symbols or imported packages; **GO-2026-5932** (`golang.org/x/crypto/openpgp` unmaintained) remains listed at module level: no fixed version exists, the package is not imported anywhere, status re-checked each milestone |
+| `make lint` | `go vet` only (golangci-lint not installed locally; CI runs v2.14.0). The deprecated-API usages the M2 review flagged (`middleware.RealIP`, `httprate.WithKeyByIP`, `httprate.Limit`) are gone |
+| Live check (Claude's browser, 375 px viewport, dev server) | register → dashboard empty state → record a lead with an inline customer → detail shows value, type, source, description, history → status to Penawaran via htmx (badge, follow-up 15 Okt 2026 and timeline updated in place, single POST 200) → note via htmx (saved, box cleared, focus back in the box, timeline updated) → pipeline list with chips and counts → customers list → dashboard summary → unknown id renders the 404 page. A throwaway account exists in the local development database only |
 
-## Security review (M2, self-review against the brief's checklist)
+## Security review (M3)
 
-| Area | Result |
-|---|---|
-| Authentication and session | Argon2id PHC with injectable params (production defaults asserted by test); dummy verify on unknown e-mail; scs sessions in Postgres, 30 d lifetime, 7 d idle, rotation on login, destroy on logout |
-| Broken object-level authorization, tenant isolation | Workspace resolved from session membership only; `Get`/`Rename` are membership-scoped SQL; form `workspace_id` ignored (test); owner-only rename |
-| CSRF / XSS | `CrossOriginProtection` on every state change with `BASE_URL` trusted origin (test); `html/template` escaping; no `template.HTML` |
-| SQL injection | Parameterised pgx queries only |
-| Mass assignment | Handlers read named fields only; password never echoed |
-| Rate limiting | httprate per IP and per e-mail; 429 page (tests) |
-| Secrets and logs | No `DATABASE_URL`, password, token, or query string in logs (tests + live check); `.env` ignored |
-| Static files | Only `app.css` and `htmx.min.js` embedded; no directory listing (test) |
-| Known gaps (deferred) | Session tokens stored unhashed (D-026); no password reset (founder-assisted during pilots); chi Recoverer logs outside slog (M1 minor); two DB queries per authenticated request |
+Independent review by a fresh-context reviewer agent (a separate Claude instance that saw only the repository, not this session; not a human reviewer) over the whole uncommitted change set, with the brief's authorization, tenant-isolation, SQL, transaction and validation requirements as the checklist.
 
-## Known defects and blockers
+| Severity | Finding | Status |
+|---|---|---|
+| Critical | none | — |
+| Important | `X-Real-IP` was honoured ahead of the rightmost `X-Forwarded-For` behind a trusted proxy; proxies that pass the header through would let a client pick its own rate-limit bucket | Fixed: `X-Real-IP` ignored; test `TestRateLimitIgnoresClientSuppliedXRealIP`; D-042 reworded |
+| Important | The out-of-band update of the lead meta block used a wrapper `div`, nesting one more `div` into the DOM on every status change | Fixed: `hx-swap-oob` on the `dl` itself; test `TestStatusFragmentSwapsMetaWithoutNestingWrappers`; checked live |
+| Important | Negative-test gaps: CSRF for the seven new POST routes, mass-assignment attempts on the edit forms, foreign `?pelanggan=` preselect | Fixed: `TestCSRFBlocksEveryM3Route`, `TestMassAssignmentIsIgnored`, `TestLeadFormIgnoresForeignPreselectedCustomer` (all passed on first run; the behaviour was already correct, now proven) |
+| Minor | fragment render failure answered a bare text 500 instead of the error page | Fixed (goes through `serverError`, retargeted for htmx) |
+| Minor | `AddNote` indexed the re-read slice without a guard; `DisplayPhone` could panic on a malformed short `+62` value | Fixed, guard tests added |
+| Minor | A unique-violation race produced a duplicate message with an empty name and a nil preselect | Fixed: generic message, no preselect when the owner is unknown |
+| Minor | comment on membership fallback, `sprintf` alias, unused constant, test import-keepers, plan text for the foreign-customer case, D-036 wording | Fixed |
+| Minor, open | `lost_reason` typed together with a non-`kalah` status is dropped silently (label already says it applies to Kalah only); the edit form accepts a follow-up date on a closed lead; chunked bodies over 64 KiB answer 400 rather than 413; customer select on the lead form caps at 500; `Customers.All`/`ForCustomer` limits are invisible to the user | Recorded; none affects isolation or integrity (the schema CHECK still enforces `lost_reason` only with `kalah`) |
+| Recommendation | `customer.WhatsAppDigits` for `wa.me` in M4; cache `time.LoadLocation`; `RETURNING` in `appendActivity`; CI grep for tenant tables queried without `workspace_id`; widen `lead_activities.kind` in migration 00004 | Carried into the M4 plan |
 
-- Tailwind standalone download from GitHub stalls on this machine; CSS was built via the Node fallback (D-031). Either path produces the committed `app.css`.
-- golangci-lint not installed locally (CI runs it). GitHub remote still missing; CI unexecuted.
-- Zero customer evidence yet (validation track).
+Reviewer's verdict: "Ready to commit: with fixes" — no Critical findings; tenant isolation, SQL safety, transactions and validation judged sound and tested at store and handler level. The three Important items are fixed and tested above.
+
+## Known defects and open items
+
+- The fragment-render-failure path (now a 500 instead of an empty 200) and scs `ErrorFunc` wiring have tests only for the latter; the former is a three-line defensive change that a template corruption would trigger.
+- Deferred from the M2 review as known gaps: no cap on concurrent Argon2 verifications (small pilot instances should run with ≥ 512 MB); registration reveals whether an e-mail is taken (mitigated by closed registration and the 10/min per-IP limit).
+- Lead search is `ILIKE` without trigram indexes (R-18); the customer select on the lead form lists at most 500 customers by name.
+- CSS build needs Node 22 on PATH (`make css-npm`); the standalone Tailwind download still stalls on this machine (D-031).
+- golangci-lint not installed locally; GitHub remote still missing, CI unexecuted.
 
 ## Decisions awaiting approval
 
-- Commit the review fix pass + CSS + docs (summary above) and merge `m2-auth-workspace` into `main`.
-- D-031 (CSS fallback via Node) and D-032 (registration limiter) recorded as routine; say so if you disagree.
+- Commit the M3 change set (proposed message in the session report) and merge `m3-customers-leads` into `main` after review.
+- D-033..D-042 recorded as routine decisions within the brief; say so if any should change.
 
 ## Next three actions
 
-1. Founder approves the commit and merge; Claude merges, re-runs the suite on `main`, closes the plan workspace.
-2. Milestone 3 plan: customers, leads, pipeline, activity log (`sqlc` reconsidered as the query count grows).
+1. Founder reviews the M3 report, approves the commit; Claude commits, merges to `main`, re-runs the suite there.
+2. Milestone 4 plan: follow-ups table or promotion of `next_follow_up_on`, "Hari ini"/"Terlambat" lists in the workspace zone, WhatsApp templates and `wa.me` links, activity kinds for follow-ups.
 3. Founder: Day 1 outreach, GitHub repository, golangci-lint decision.

@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	sessionCookieName = "kl_session"
-	sessionUserKey    = "user_id"
-	sessionFlashKey   = "flash"
+	sessionCookieName   = "kl_session"
+	sessionUserKey      = "user_id"
+	sessionWorkspaceKey = "workspace_id"
+	sessionFlashKey     = "flash"
 )
 
 // NewSessionManager stores sessions server-side in the `sessions` table.
