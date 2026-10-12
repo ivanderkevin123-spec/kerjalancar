@@ -12,10 +12,13 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	_ "time/tzdata" // workspace time zones must resolve inside a minimal container
 
 	"kerjalancar/internal/auth"
 	"kerjalancar/internal/config"
+	"kerjalancar/internal/customer"
 	"kerjalancar/internal/db"
+	"kerjalancar/internal/lead"
 	"kerjalancar/internal/web"
 	"kerjalancar/internal/workspace"
 )
@@ -62,6 +65,8 @@ func run() error {
 		Sessions:         web.NewSessionManager(pool, cfg.Env == "production", 30*time.Minute),
 		Auth:             auth.NewService(pool, auth.DefaultParams),
 		Workspaces:       workspace.NewStore(pool),
+		Customers:        customer.NewStore(pool),
+		Leads:            lead.NewStore(pool),
 		Templates:        templates,
 		RegistrationOpen: cfg.RegistrationOpen,
 		RegistrationCode: cfg.RegistrationCode,

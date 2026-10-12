@@ -82,7 +82,16 @@ func (s *server) postMasuk(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.startSession(r, user.ID); err != nil {
+	workspaces, err := s.Workspaces.ForUser(r.Context(), user.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if len(workspaces) == 0 {
+		s.serverError(w, r, errors.New("user has no workspace"))
+		return
+	}
+	if err := s.startSession(r, user.ID, workspaces[0].ID); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -158,7 +167,7 @@ func (s *server) postDaftar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, _, err := s.Auth.Register(r.Context(), auth.RegisterInput{Email: email, Password: password, Name: name, WorkspaceName: wsName})
+	user, wsID, err := s.Auth.Register(r.Context(), auth.RegisterInput{Email: email, Password: password, Name: name, WorkspaceName: wsName})
 	if errors.Is(err, auth.ErrEmailTaken) {
 		v.Errors["email"] = msgEmailUnusable
 		s.render(w, r, http.StatusOK, "daftar", v)
@@ -168,7 +177,7 @@ func (s *server) postDaftar(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.startSession(r, user.ID); err != nil {
+	if err := s.startSession(r, user.ID, wsID); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

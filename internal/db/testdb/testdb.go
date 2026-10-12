@@ -33,9 +33,18 @@ func Pool(t *testing.T) *pgxpool.Pool {
 		t.Skip("TEST_DATABASE_URL not set; skipping database test")
 	}
 	once.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
-		pool, poolErr = db.NewPool(ctx, url)
+		// Several test binaries start at once and compete with the compiler for
+		// CPU; a single 5 s connect attempt can time out on a loaded machine or
+		// CI runner, so keep trying within the overall budget.
+		for {
+			pool, poolErr = db.NewPool(ctx, url)
+			if poolErr == nil || ctx.Err() != nil {
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
 		if poolErr != nil {
 			return
 		}

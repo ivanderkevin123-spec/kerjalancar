@@ -18,6 +18,8 @@ import (
 	"github.com/go-chi/httprate"
 
 	"kerjalancar/internal/auth"
+	"kerjalancar/internal/customer"
+	"kerjalancar/internal/lead"
 	"kerjalancar/internal/workspace"
 )
 
@@ -32,13 +34,16 @@ type Pinger interface {
 type Deps struct {
 	Logger *slog.Logger
 	DB     Pinger
-	// TrustProxy: honour X-Forwarded-For / X-Real-IP. Never set it unless a
-	// trusted proxy in front of the app overwrites those headers.
+	// TrustProxy: take the client address from the rightmost X-Forwarded-For
+	// entry. Set it only when exactly one trusted proxy sits in front of the
+	// app and appends that header; X-Real-IP is never honoured.
 	TrustProxy bool
 
 	Sessions         *scs.SessionManager
 	Auth             *auth.Service
 	Workspaces       *workspace.Store
+	Customers        *customer.Store
+	Leads            *lead.Store
 	Templates        *Templates
 	RegistrationOpen bool
 	RegistrationCode string
@@ -65,12 +70,11 @@ const (
 func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	if d.TrustProxy {
-		r.Use(middleware.RealIP)
-	}
+	r.Use(clientIPMiddleware(d.TrustProxy))
 	r.Use(requestLogger(d.Logger))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(requestTimeout))
+	r.Use(securityHeaders)
 
 	r.Get("/healthz", handleHealthz)
 	r.Get("/readyz", handleReadyz(d.DB))
@@ -93,11 +97,15 @@ func NewRouter(d Deps) http.Handler {
 		}
 	}
 	csrf.SetDenyHandler(http.HandlerFunc(s.forbidden))
+	// A session store failure must render our error page, not scs's plain text.
+	d.Sessions.ErrorFunc = func(w http.ResponseWriter, r *http.Request, err error) { s.serverError(w, r, err) }
 
 	r.NotFound(s.notFound)
 	r.MethodNotAllowed(s.methodNotAllowed)
 
 	r.Group(func(r chi.Router) {
+		r.Use(noStore)
+		r.Use(s.limitBody)
 		r.Use(func(next http.Handler) http.Handler { return csrf.Handler(next) })
 		r.Use(d.Sessions.LoadAndSave)
 
@@ -113,6 +121,22 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/", s.getBeranda)
 			r.Get("/pengaturan", s.getPengaturan)
 			r.Post("/pengaturan", s.postPengaturan)
+
+			r.Get("/pelanggan", s.getPelangganList)
+			r.Get("/pelanggan/baru", s.getPelangganBaru)
+			r.Post("/pelanggan", s.postPelanggan)
+			r.Get("/pelanggan/{id}", s.getPelanggan)
+			r.Get("/pelanggan/{id}/ubah", s.getPelangganUbah)
+			r.Post("/pelanggan/{id}", s.postPelangganUbah)
+
+			r.Get("/prospek", s.getProspekList)
+			r.Get("/prospek/baru", s.getProspekBaru)
+			r.Post("/prospek", s.postProspek)
+			r.Get("/prospek/{id}", s.getProspek)
+			r.Get("/prospek/{id}/ubah", s.getProspekUbah)
+			r.Post("/prospek/{id}", s.postProspekUbah)
+			r.Post("/prospek/{id}/status", s.postProspekStatus)
+			r.Post("/prospek/{id}/catatan", s.postProspekCatatan)
 		})
 	})
 
@@ -123,10 +147,12 @@ func NewRouter(d Deps) http.Handler {
 // Each call creates fresh counters, so each endpoint and router has its own.
 func (s *server) authLimits(perEmail int) []func(http.Handler) http.Handler {
 	deny := httprate.WithLimitHandler(s.tooManyRequests)
-	byIP := httprate.Limit(loginLimitPerIP, time.Minute, httprate.WithKeyByIP(), deny)
-	byEmail := httprate.Limit(perEmail, time.Minute, httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
+	byIP := httprate.LimitBy(loginLimitPerIP, time.Minute, func(r *http.Request) (string, error) {
+		return "ip:" + ClientIP(r), nil
+	}, deny)
+	byEmail := httprate.LimitBy(perEmail, time.Minute, func(r *http.Request) (string, error) {
 		return "email:" + auth.NormalizeEmail(r.FormValue("email")), nil
-	}), deny)
+	}, deny)
 	return []func(http.Handler) http.Handler{byIP, byEmail}
 }
 
