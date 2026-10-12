@@ -10,3 +10,16 @@ docs/private/
 
 # OS / editor
 .DS_Store
+
+# Go
+/bin/
+*.test
+coverage.out
+/tmp/
+
+# local toolchains, caches, assets
+/.toolchain/
+node_modules/
+
+# plan-execution scratch (ledger, briefs)
+/.superpowers/
