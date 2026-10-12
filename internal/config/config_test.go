@@ -16,14 +16,14 @@ func getter(m map[string]string) config.Getter {
 
 func TestLoadDefaults(t *testing.T) {
 	cfg, err := config.Load(getter(map[string]string{
-		"DATABASE_URL": "postgres://u:p@localhost:5432/db",
+		"DATABASE_URL": "postgres://localhost:5432/db",
 	}))
 	require.NoError(t, err)
 	assert.Equal(t, "development", cfg.Env)
 	assert.Equal(t, 8080, cfg.Port)
 	assert.Equal(t, "http://localhost:8080", cfg.BaseURL)
 	assert.Equal(t, slog.LevelInfo, cfg.LogLevel)
-	assert.Equal(t, "postgres://u:p@localhost:5432/db", cfg.DatabaseURL)
+	assert.Equal(t, "postgres://localhost:5432/db", cfg.DatabaseURL)
 }
 
 func TestLoadParsesValues(t *testing.T) {
@@ -32,7 +32,7 @@ func TestLoadParsesValues(t *testing.T) {
 		"PORT":         "9090",
 		"BASE_URL":     "https://app.kerjalancar.id/",
 		"LOG_LEVEL":    "warn",
-		"DATABASE_URL": "postgres://u:p@db:5432/app",
+		"DATABASE_URL": "postgres://db:5432/app",
 	}))
 	require.NoError(t, err)
 	assert.Equal(t, "production", cfg.Env)

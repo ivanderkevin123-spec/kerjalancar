@@ -15,9 +15,9 @@ const (
 	msgEmailRequired    = "Email wajib diisi."
 	msgEmailInvalid     = "Email tidak valid."
 	msgEmailUnusable    = "Email tidak dapat digunakan. Jika sudah punya akun, silakan masuk."
-	msgPasswordRequired = "Kata sandi wajib diisi."
-	msgPasswordShort    = "Kata sandi minimal 8 karakter."
-	msgPasswordLong     = "Kata sandi terlalu panjang."
+	msgPasswordRequired = "Kata sandi wajib diisi."        //nolint:gosec // G101: form copy, not a credential
+	msgPasswordShort    = "Kata sandi minimal 8 karakter." //nolint:gosec // G101: form copy, not a credential
+	msgPasswordLong     = "Kata sandi terlalu panjang."    //nolint:gosec // G101: form copy, not a credential
 	msgNameRequired     = "Nama wajib diisi."
 	msgNameLong         = "Nama maksimal 100 karakter."
 	msgWorkspaceReq     = "Nama usaha wajib diisi."
