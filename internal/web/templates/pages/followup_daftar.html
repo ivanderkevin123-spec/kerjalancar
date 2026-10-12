@@ -1,0 +1,84 @@
+{{define "content"}}
+<h1 class="text-xl font-semibold text-slate-900">Follow-up</h1>
+<p class="mt-1 text-sm text-slate-500">Siapa yang perlu dihubungi, dan kapan. Tandai selesai setelah menghubungi.</p>
+{{template "fu_counts" .}}
+{{if .Data.Rows}}
+<ul id="fu-list" class="mt-3 space-y-3">
+  {{range .Data.Rows}}{{template "followup_row" .}}{{end}}
+</ul>
+{{if eq .Data.Tab "selesai"}}{{template "pagination" .Data.Pager}}{{end}}
+{{else}}
+<section class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center">
+  {{if eq .Data.Tab "terlambat"}}
+  <h2 class="text-base font-semibold text-slate-900">Tidak ada follow-up yang terlambat</h2>
+  <p class="mt-1 text-sm text-slate-500">Semua sudah dihubungi tepat waktu.</p>
+  {{else if eq .Data.Tab "mendatang"}}
+  <h2 class="text-base font-semibold text-slate-900">Belum ada follow-up mendatang</h2>
+  <p class="mt-1 text-sm text-slate-500">Jadwalkan follow-up dari halaman prospek agar tidak ada yang terlupa.</p>
+  {{else if eq .Data.Tab "selesai"}}
+  <h2 class="text-base font-semibold text-slate-900">Belum ada follow-up yang selesai</h2>
+  <p class="mt-1 text-sm text-slate-500">Follow-up yang Anda tandai selesai akan tercatat di sini.</p>
+  {{else}}
+  <h2 class="text-base font-semibold text-slate-900">Tidak ada follow-up hari ini. Bagus!</h2>
+  <p class="mt-1 text-sm text-slate-500">Lihat <a href="/app/follow-up?tab=mendatang" class="font-medium text-teal-700 hover:underline">yang mendatang</a> atau <a href="/app/prospek" class="font-medium text-teal-700 hover:underline">pipeline prospek</a>.</p>
+  {{end}}
+</section>
+{{end}}
+{{if .Data.Later}}
+<h2 class="mt-6 text-sm font-semibold text-slate-900">Lebih dari seminggu lagi</h2>
+<ul class="mt-2 space-y-3">
+  {{range .Data.Later}}{{template "followup_row" .}}{{end}}
+</ul>
+{{end}}
+{{end}}
+
+{{define "fu_counts"}}
+<nav id="fu-counts" {{if .Data.Row}}hx-swap-oob="true" {{end}}class="mt-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 text-sm" aria-label="Tab follow-up">
+  {{range .Data.Tabs}}
+  <a href="{{.URL}}" class="shrink-0 rounded-full px-3 py-1.5 ring-1 {{if .Active}}bg-teal-600 text-white ring-teal-600{{else}}bg-white text-slate-700 ring-slate-300 hover:bg-slate-100{{end}}">{{.Label}} <span class="{{if .Active}}text-teal-100{{else}}text-slate-400{{end}}">{{.Count}}</span></a>
+  {{end}}
+</nav>
+{{end}}
+
+{{define "followup_row"}}
+<li id="fu-{{.F.ID}}" class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  {{if .Msg}}<div role="status" class="mb-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">{{.Msg}}</div>{{end}}
+  {{if .Err}}<div role="alert" class="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{.Err}}</div>{{end}}
+  <div class="flex items-start justify-between gap-3">
+    <div class="min-w-0">
+      <a href="/app/prospek/{{.F.LeadID}}" class="block truncate font-medium text-slate-900 hover:underline">{{.F.CustomerName}}</a>
+      <p class="truncate text-sm text-slate-500">{{.F.LeadTitle}}</p>
+    </div>
+    {{template "status_badge" .F.LeadStatus}}
+  </div>
+  <p class="mt-2 text-sm text-slate-700">
+    {{if .F.Open}}<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{bucketClass .Bucket}}">{{bucketLabel .Bucket}}</span> <span class="font-medium">{{.Due}}</span>{{else}}Selesai {{.DoneAt}} <span class="text-slate-400">· jatuh tempo {{.Due}}</span>{{end}}
+    {{if .F.Note}}<span class="block text-slate-600">{{.F.Note}}</span>{{end}}
+  </p>
+  <div class="mt-3 flex flex-wrap gap-2">
+    {{if .F.Open}}
+    <form hx-post="/app/follow-up/{{.F.ID}}/selesai" hx-target="closest li" hx-swap="outerHTML" method="post" action="/app/follow-up/{{.F.ID}}/selesai">
+      <input type="hidden" name="tampilan" value="daftar"><input type="hidden" name="tab" value="{{.Tab}}">
+      <button type="submit" class="{{template "btn_primary"}} text-sm"><span class="htmx-indicator-hidden">Selesai</span></button>
+    </form>
+    {{else if .F.LeadStatus.Open}}
+    <form hx-post="/app/follow-up/{{.F.ID}}/batal" hx-target="closest li" hx-swap="outerHTML" method="post" action="/app/follow-up/{{.F.ID}}/batal">
+      <input type="hidden" name="tampilan" value="daftar"><input type="hidden" name="tab" value="{{.Tab}}">
+      <button type="submit" class="{{template "btn_secondary"}} text-sm"><span class="htmx-indicator-hidden">Batalkan selesai</span></button>
+    </form>
+    {{end}}
+    {{if .F.CustomerPhone}}
+    <form method="post" action="/app/prospek/{{.F.LeadID}}/wa" target="_blank" hx-boost="false">
+      <input type="hidden" name="template" value="followup_penawaran">
+      <button type="submit" class="{{template "btn_secondary"}} text-sm">WhatsApp</button>
+    </form>
+    {{end}}
+    <a href="/app/prospek/{{.F.LeadID}}" class="{{template "btn_secondary"}} text-sm">Buka prospek</a>
+  </div>
+</li>
+{{end}}
+
+{{define "followup_row_oob"}}
+{{template "followup_row" .Data.Row}}
+{{template "fu_counts" .}}
+{{end}}

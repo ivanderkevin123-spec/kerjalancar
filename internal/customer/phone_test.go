@@ -49,3 +49,9 @@ func TestDisplayPhoneNeverPanicsOnShortInput(t *testing.T) {
 	}
 	assert.Equal(t, "+62", customer.DisplayPhone("+62"))
 }
+
+func TestWhatsAppDigitsStripsThePlus(t *testing.T) {
+	assert.Equal(t, "6281234567890", customer.WhatsAppDigits("+6281234567890"))
+	assert.Equal(t, "6591234567", customer.WhatsAppDigits("+6591234567"))
+	assert.Equal(t, "", customer.WhatsAppDigits(""))
+}

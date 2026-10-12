@@ -19,7 +19,9 @@ import (
 
 	"kerjalancar/internal/auth"
 	"kerjalancar/internal/customer"
+	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
+	"kerjalancar/internal/template"
 	"kerjalancar/internal/workspace"
 )
 
@@ -44,7 +46,11 @@ type Deps struct {
 	Workspaces       *workspace.Store
 	Customers        *customer.Store
 	Leads            *lead.Store
+	FollowUps        *followup.Store
+	MessageTemplates *template.Store
 	Templates        *Templates
+	// Clock supplies "now"; nil means time.Now. Tests pin it to check date buckets.
+	Clock            func() time.Time
 	RegistrationOpen bool
 	RegistrationCode string
 	BaseURL          string // trusted origin for CSRF checks behind a proxy
@@ -121,6 +127,9 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/", s.getBeranda)
 			r.Get("/pengaturan", s.getPengaturan)
 			r.Post("/pengaturan", s.postPengaturan)
+			r.Post("/pengaturan/zona-waktu", s.postPengaturanZona)
+			r.Get("/pengaturan/templat", s.getPengaturanTemplat)
+			r.Post("/pengaturan/templat/{key}", s.postPengaturanTemplat)
 
 			r.Get("/pelanggan", s.getPelangganList)
 			r.Get("/pelanggan/baru", s.getPelangganBaru)
@@ -137,6 +146,12 @@ func NewRouter(d Deps) http.Handler {
 			r.Post("/prospek/{id}", s.postProspekUbah)
 			r.Post("/prospek/{id}/status", s.postProspekStatus)
 			r.Post("/prospek/{id}/catatan", s.postProspekCatatan)
+			r.Post("/prospek/{id}/follow-up", s.postProspekFollowUp)
+			r.Post("/prospek/{id}/wa", s.postProspekWa)
+
+			r.Get("/follow-up", s.getFollowUpList)
+			r.Post("/follow-up/{id}/selesai", s.postFollowUpDone)
+			r.Post("/follow-up/{id}/batal", s.postFollowUpUndo)
 		})
 	})
 

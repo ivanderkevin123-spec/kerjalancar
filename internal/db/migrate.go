@@ -35,6 +35,20 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) ([]int64, error) {
 	return versions, nil
 }
 
+// MigrateTo applies migrations up to and including version (tests use it to
+// stage data before a later migration's backfill runs).
+func MigrateTo(ctx context.Context, pool *pgxpool.Pool, version int64) error {
+	provider, closeFn, err := newProvider(pool)
+	if err != nil {
+		return err
+	}
+	defer closeFn()
+	if _, err := provider.UpTo(ctx, version); err != nil {
+		return fmt.Errorf("migrate up to %d: %w", version, err)
+	}
+	return nil
+}
+
 // MigrationStatus lists every known migration with its applied state.
 func MigrationStatus(ctx context.Context, pool *pgxpool.Pool) ([]*goose.MigrationStatus, error) {
 	provider, closeFn, err := newProvider(pool)

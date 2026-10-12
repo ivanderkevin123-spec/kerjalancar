@@ -67,3 +67,22 @@ func TestRenameRejectsEmptyName(t *testing.T) {
 	_, err := store.Rename(ctx, wsA, userA, "   ")
 	assert.Error(t, err)
 }
+
+func TestUpdateTimezoneIsOwnerOnlyAndWhitelisted(t *testing.T) {
+	ctx, store, userA, userB, wsA, _ := setupTwo(t)
+	assert.Equal(t, []string{"Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"}, workspace.Timezones)
+	assert.Equal(t, "WITA (Makassar, Bali, Kalimantan Selatan)", workspace.TimezoneLabel("Asia/Makassar"))
+
+	ws, err := store.UpdateTimezone(ctx, wsA, userA, "Asia/Jayapura")
+	require.NoError(t, err)
+	assert.Equal(t, "Asia/Jayapura", ws.Timezone)
+
+	_, err = store.UpdateTimezone(ctx, wsA, userA, "Europe/Berlin")
+	assert.ErrorIs(t, err, workspace.ErrInvalidTimezone)
+	_, err = store.UpdateTimezone(ctx, wsA, userB, "Asia/Makassar")
+	assert.ErrorIs(t, err, workspace.ErrNotFound, "non-members and staff cannot change the zone")
+
+	again, err := store.Get(ctx, wsA, userA)
+	require.NoError(t, err)
+	assert.Equal(t, "Asia/Jayapura", again.Timezone)
+}

@@ -11,12 +11,30 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"kerjalancar/internal/template"
 )
 
 var (
-	ErrNotFound    = errors.New("workspace: not found")
-	ErrInvalidName = errors.New("workspace: name must be 1-100 characters")
+	ErrNotFound        = errors.New("workspace: not found")
+	ErrInvalidName     = errors.New("workspace: name must be 1-100 characters")
+	ErrInvalidTimezone = errors.New("workspace: unsupported time zone")
 )
+
+// Timezones a workspace may use (mirrored by a CHECK constraint, migration 00004).
+var Timezones = []string{"Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"}
+
+var timezoneLabels = map[string]string{
+	"Asia/Jakarta":  "WIB (Jakarta, Sumatra, Jawa, Kalimantan Barat)",
+	"Asia/Makassar": "WITA (Makassar, Bali, Kalimantan Selatan)",
+	"Asia/Jayapura": "WIT (Papua, Maluku)",
+}
+
+// TimezoneLabel is the Indonesian label of a supported zone ("" otherwise).
+func TimezoneLabel(tz string) string { return timezoneLabels[tz] }
+
+// ValidTimezone reports whether tz is one of Timezones.
+func ValidTimezone(tz string) bool { _, ok := timezoneLabels[tz]; return ok }
 
 // Workspace is one business tenant.
 type Workspace struct {
@@ -38,6 +56,9 @@ func CreateWithOwner(ctx context.Context, tx pgx.Tx, name string, ownerID uuid.U
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO memberships (workspace_id, user_id, role) VALUES ($1, $2, 'owner')`, id, ownerID); err != nil {
 		return Workspace{}, fmt.Errorf("workspace: owner membership: %w", err)
+	}
+	if err := template.SeedTx(ctx, tx, id); err != nil {
+		return Workspace{}, err
 	}
 	return Workspace{ID: id, Name: name, Timezone: "Asia/Jakarta"}, nil
 }
@@ -107,6 +128,27 @@ func (s *Store) Rename(ctx context.Context, workspaceID, userID uuid.UUID, name 
 	}
 	if err != nil {
 		return Workspace{}, fmt.Errorf("workspace: rename: %w", err)
+	}
+	return w, nil
+}
+
+// UpdateTimezone changes the workspace zone; only the owner may do it and only
+// to a supported zone. Non-members and staff get ErrNotFound.
+func (s *Store) UpdateTimezone(ctx context.Context, workspaceID, userID uuid.UUID, tz string) (Workspace, error) {
+	if !ValidTimezone(tz) {
+		return Workspace{}, ErrInvalidTimezone
+	}
+	var w Workspace
+	err := s.pool.QueryRow(ctx, `
+		UPDATE workspaces w SET timezone = $3, updated_at = now()
+		FROM memberships m
+		WHERE w.id = $1 AND m.workspace_id = w.id AND m.user_id = $2 AND m.role = 'owner'
+		RETURNING w.id, w.name, w.timezone`, workspaceID, userID, tz).Scan(&w.ID, &w.Name, &w.Timezone)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Workspace{}, ErrNotFound
+	}
+	if err != nil {
+		return Workspace{}, fmt.Errorf("workspace: update timezone: %w", err)
 	}
 	return w, nil
 }

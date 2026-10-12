@@ -39,7 +39,7 @@
       </div>
       <div class="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-500">
         <span>{{if .EstimatedValue}}{{rupiah .EstimatedValue}}{{else}}Belum ada estimasi{{end}}</span>
-        {{if .NextFollowUpOn}}<span class="{{if lewat .NextFollowUpOn $.Loc}}font-medium text-rose-600{{end}}">Follow-up {{tanggal .NextFollowUpOn}}{{if lewat .NextFollowUpOn $.Loc}} (terlewat){{end}}</span>{{end}}
+        {{if .NextFollowUpOn}}<span class="{{if lewat .NextFollowUpOn $.Today}}font-medium text-rose-600{{end}}">Follow-up {{tanggal .NextFollowUpOn}}{{if lewat .NextFollowUpOn $.Today}} (terlewat){{end}}</span>{{end}}
         <span>Dicatat {{waktu .CreatedAt $.Loc}}</span>
       </div>
     </a>

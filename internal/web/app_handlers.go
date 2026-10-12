@@ -4,22 +4,43 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
+	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
 	"kerjalancar/internal/workspace"
 )
 
+var locations sync.Map // zone name → *time.Location (LoadLocation reads tzdata each call)
+
 // location resolves the workspace time zone, falling back to Asia/Jakarta.
 func location(name string) *time.Location {
-	if loc, err := time.LoadLocation(name); err == nil && name != "" {
-		return loc
+	if v, ok := locations.Load(name); ok {
+		return v.(*time.Location)
 	}
-	if loc, err := time.LoadLocation("Asia/Jakarta"); err == nil {
-		return loc
+	loc, err := time.LoadLocation(name)
+	if err != nil || name == "" {
+		if loc, err = time.LoadLocation("Asia/Jakarta"); err != nil {
+			loc = time.FixedZone("WIB", 7*3600)
+		}
 	}
-	return time.FixedZone("WIB", 7*3600)
+	locations.Store(name, loc)
+	return loc
+}
+
+// now is the injectable clock (Deps.Clock), time.Now in production.
+func (s *server) now() time.Time {
+	if s.Clock != nil {
+		return s.Clock()
+	}
+	return time.Now()
+}
+
+// today is the workspace's calendar day as a date (UTC midnight).
+func (s *server) today(ws workspace.Workspace) time.Time {
+	return followup.Today(s.now(), location(ws.Timezone))
 }
 
 const msgWorkspaceSaved = "Nama usaha tersimpan."
@@ -32,12 +53,15 @@ func (s *server) appView(r *http.Request, title, nav string) *View {
 	v.User = &user
 	v.Workspace = &ws
 	v.Loc = location(ws.Timezone)
+	v.Today = s.today(ws)
 	return v
 }
 
 type berandaData struct {
-	Summary lead.Summary
-	Total   int
+	Summary   lead.Summary
+	Total     int
+	FollowUps followup.Lists
+	Agenda    []fuRow // overdue first, then today's, at most five
 }
 
 func (s *server) getBeranda(w http.ResponseWriter, r *http.Request) {
@@ -51,9 +75,15 @@ func (s *server) getBeranda(w http.ResponseWriter, r *http.Request) {
 	for _, n := range sum.ByStatus {
 		total += n
 	}
+	today, loc := s.today(ws), location(ws.Timezone)
+	lists, err := s.FollowUps.Lists(r.Context(), ws.ID, today)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	v := s.appView(r, "Beranda", "beranda")
 	v.Flash = s.Sessions.PopString(r.Context(), sessionFlashKey)
-	v.Data = berandaData{Summary: sum, Total: total}
+	v.Data = berandaData{Summary: sum, Total: total, FollowUps: lists, Agenda: s.dashboardFollowUps(lists, today, loc, 5)}
 	s.render(w, r, http.StatusOK, "beranda", v)
 }
 
@@ -61,6 +91,7 @@ func (s *server) getPengaturan(w http.ResponseWriter, r *http.Request) {
 	v := s.appView(r, "Pengaturan", "pengaturan")
 	v.Form["name"] = v.Workspace.Name
 	v.Flash = s.Sessions.PopString(r.Context(), sessionFlashKey)
+	v.Data = s.pengaturanData(*v.Workspace, "")
 	s.render(w, r, http.StatusOK, "pengaturan", v)
 }
 
@@ -74,6 +105,7 @@ func (s *server) postPengaturan(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PostFormValue("name"))
 	v := s.appView(r, "Pengaturan", "pengaturan")
 	v.Form["name"] = name
+	v.Data = s.pengaturanData(*v.Workspace, "")
 	hx := r.Header.Get("HX-Request") == "true"
 
 	switch {

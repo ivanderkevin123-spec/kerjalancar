@@ -14,12 +14,13 @@ import (
 	"kerjalancar/internal/auth"
 	"kerjalancar/internal/customer"
 	"kerjalancar/internal/db/testdb"
+	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
 )
 
 var (
 	lightArgon = auth.Params{MemoryKiB: 8192, Time: 1, Threads: 1}
-	jakarta    = time.FixedZone("WIB", 7*3600)
+	today      = time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC) // the workspace's calendar day, as the web layer computes it
 )
 
 type fixture struct {
@@ -44,6 +45,8 @@ func setup(t *testing.T) fixture {
 		return u.ID, ws
 	}
 	f := fixture{ctx: ctx, leads: lead.NewStore(pool), customers: customer.NewStore(pool)}
+	f.leads.ScheduleHook = followup.ScheduleForLead
+	f.leads.CloseHook = followup.CloseForLead
 	f.userA, f.wsA = reg("a")
 	f.userB, f.wsB = reg("b")
 	var err error
@@ -131,40 +134,44 @@ func TestChangeStatusRecordsHistoryAndAppliesRules(t *testing.T) {
 	f := setup(t)
 	l := f.newLead(t, "Pagar")
 
-	moved, err := f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusPenawaran, "", jakarta)
+	moved, err := f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusPenawaran, "", today)
 	require.NoError(t, err)
 	assert.Equal(t, lead.StatusPenawaran, moved.Status)
 	assert.True(t, moved.StatusChangedAt.After(l.StatusChangedAt))
 	require.NotNil(t, moved.NextFollowUpOn, "penawaran pre-sets a follow-up date")
-	now := time.Now().In(jakarta)
-	assert.Equal(t, time.Date(now.Year(), now.Month(), now.Day()+3, 0, 0, 0, 0, time.UTC), *moved.NextFollowUpOn)
+	assert.Equal(t, time.Date(2026, 10, 23, 0, 0, 0, 0, time.UTC), *moved.NextFollowUpOn, "today + 3 from the injected date, not the wall clock")
 
-	_, err = f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusPenawaran, "", jakarta)
+	_, err = f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusPenawaran, "", today)
 	assert.ErrorIs(t, err, lead.ErrSameStatus)
 
-	lost, err := f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusKalah, "  harga terlalu tinggi ", jakarta)
+	lost, err := f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusKalah, "  harga terlalu tinggi ", today)
 	require.NoError(t, err)
 	assert.Equal(t, "harga terlalu tinggi", lost.LostReason)
 	assert.Nil(t, lost.NextFollowUpOn, "closing clears the follow-up date")
 
-	_, err = f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusMenang, "", jakarta)
+	_, err = f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusMenang, "", today)
 	assert.ErrorIs(t, err, lead.ErrClosedToClosed)
 
-	reopened, err := f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusDihubungi, "", jakarta)
+	reopened, err := f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.StatusDihubungi, "", today)
 	require.NoError(t, err)
 	assert.Empty(t, reopened.LostReason, "reason cleared on reopen")
 
-	_, err = f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.Status("negosiasi"), "", jakarta)
+	_, err = f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, l.ID, lead.Status("negosiasi"), "", today)
 	assert.ErrorIs(t, err, lead.ErrInvalidStatus)
 
 	acts, err := f.leads.Activities(f.ctx, f.wsA, l.ID, 10)
 	require.NoError(t, err)
-	require.Len(t, acts, 4, "created + 3 successful changes; refused changes write nothing")
+	// created, baru→penawaran, auto-scheduled follow-up, penawaran→kalah, auto-closed follow-up, kalah→dihubungi;
+	// refused changes write nothing.
+	require.Len(t, acts, 6)
 	assert.Equal(t, lead.KindStatusChanged, acts[0].Kind)
 	assert.Equal(t, lead.StatusKalah, acts[0].Data.From)
 	assert.Equal(t, lead.StatusDihubungi, acts[0].Data.To)
-	assert.Equal(t, "harga terlalu tinggi", acts[1].Data.Reason)
-	assert.Equal(t, lead.KindCreated, acts[3].Kind)
+	assert.Equal(t, lead.KindFollowUpDone, acts[1].Kind)
+	assert.True(t, acts[1].Data.Auto)
+	assert.Equal(t, "harga terlalu tinggi", acts[2].Data.Reason)
+	assert.Equal(t, lead.KindFollowUpScheduled, acts[3].Kind)
+	assert.Equal(t, lead.KindCreated, acts[5].Kind)
 }
 
 func TestAddNoteAndUpdateAppendActivities(t *testing.T) {
@@ -178,7 +185,7 @@ func TestAddNoteAndUpdateAppendActivities(t *testing.T) {
 	var verr *lead.ValidationError
 	assert.True(t, errors.As(err, &verr), "empty note refused, got %v", err)
 
-	upd, err := f.leads.Update(f.ctx, f.wsA, f.userA, l.ID, lead.Input{Title: "Plafon", EstimatedValue: "12.000.000", Source: "instagram", Description: "gypsum"})
+	upd, err := f.leads.Update(f.ctx, f.wsA, f.userA, l.ID, lead.Input{Title: "Plafon", EstimatedValue: "12.000.000", Source: "instagram", Description: "gypsum", NextFollowUpOn: "2026-12-31"})
 	require.NoError(t, err)
 	assert.Equal(t, lead.Source("instagram"), upd.Source)
 
@@ -197,6 +204,9 @@ func TestAddNoteAndUpdateAppendActivities(t *testing.T) {
 	assert.Empty(t, fields["description"].To, "long text never lands in the history")
 	_, hasTitle := fields["title"]
 	assert.False(t, hasTitle, "unchanged fields are not listed")
+	_, hasFollowUp := fields["next_follow_up_on"]
+	assert.False(t, hasFollowUp, "follow-up dates are owned by the follow-up store, not the edit form")
+	assert.Nil(t, upd.NextFollowUpOn)
 
 	same, err := f.leads.Update(f.ctx, f.wsA, f.userA, l.ID, lead.Input{Title: "Plafon", EstimatedValue: "12.000.000", Source: "instagram", Description: "gypsum"})
 	require.NoError(t, err)
@@ -223,7 +233,7 @@ func TestCrossWorkspaceAccessIsNotFoundAndWritesNothing(t *testing.T) {
 	assert.ErrorIs(t, err, lead.ErrNotFound)
 	_, err = f.leads.Update(f.ctx, f.wsB, f.userB, l.ID, lead.Input{Title: "Dibajak"})
 	assert.ErrorIs(t, err, lead.ErrNotFound)
-	_, err = f.leads.ChangeStatus(f.ctx, f.wsB, f.userB, l.ID, lead.StatusKalah, "", jakarta)
+	_, err = f.leads.ChangeStatus(f.ctx, f.wsB, f.userB, l.ID, lead.StatusKalah, "", today)
 	assert.ErrorIs(t, err, lead.ErrNotFound)
 	_, err = f.leads.AddNote(f.ctx, f.wsB, f.userB, l.ID, "hai")
 	assert.ErrorIs(t, err, lead.ErrNotFound)
@@ -258,9 +268,9 @@ func TestListFiltersSearchesSortsAndPaginates(t *testing.T) {
 	expensive := mk("Rumah dua lantai", "900.000.000")
 	none := mk("Konsultasi", "")
 	won := mk("Kitchen set", "30.000.000")
-	_, err := f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, won.ID, lead.StatusMenang, "", jakarta)
+	_, err := f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, won.ID, lead.StatusMenang, "", today)
 	require.NoError(t, err)
-	_, err = f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, none.ID, lead.StatusPenawaran, "", jakarta)
+	_, err = f.leads.ChangeStatus(f.ctx, f.wsA, f.userA, none.ID, lead.StatusPenawaran, "", today)
 	require.NoError(t, err)
 
 	active, err := f.leads.List(f.ctx, f.wsA, lead.ListQuery{})
@@ -325,4 +335,16 @@ func TestListFiltersSearchesSortsAndPaginates(t *testing.T) {
 	assert.Equal(t, 28, sum.OpenCount)
 	assert.Equal(t, 1, sum.ByStatus[lead.StatusMenang])
 	assert.Equal(t, int64(902_000_000), sum.OpenValue, "won leads are not pipeline value")
+}
+
+func TestRecordWhatsAppStaysInsideTheWorkspace(t *testing.T) {
+	f := setup(t)
+	l := f.newLead(t, "Kanopi")
+	require.NoError(t, f.leads.RecordWhatsApp(f.ctx, f.wsA, f.userA, l.ID, "Follow-up penawaran"))
+	assert.ErrorIs(t, f.leads.RecordWhatsApp(f.ctx, f.wsB, f.userB, l.ID, "Follow-up penawaran"), lead.ErrNotFound)
+	acts, err := f.leads.Activities(f.ctx, f.wsA, l.ID, 10)
+	require.NoError(t, err)
+	require.Len(t, acts, 2)
+	assert.Equal(t, lead.KindWhatsAppOpened, acts[0].Kind)
+	assert.Equal(t, "Pesan WhatsApp dibuka: Follow-up penawaran", acts[0].Describe())
 }

@@ -62,11 +62,13 @@
         <input id="estimated_value" name="estimated_value" type="text" inputmode="numeric" autocomplete="off" placeholder="15.000.000" value="{{.Form.estimated_value}}" class="{{template "input_class"}}">
         {{template "field_error" .Errors.estimated_value}}
       </div>
+      {{if not .Data.Edit}}
       <div>
-        <label for="next_follow_up_on" class="block text-sm font-medium text-slate-700">Follow-up berikutnya</label>
+        <label for="next_follow_up_on" class="block text-sm font-medium text-slate-700">Follow-up pertama <span class="font-normal text-slate-400">(opsional)</span></label>
         <input id="next_follow_up_on" name="next_follow_up_on" type="date" value="{{.Form.next_follow_up_on}}" class="{{template "input_class"}}">
         {{template "field_error" .Errors.next_follow_up_on}}
       </div>
+      {{end}}
     </div>
     <div>
       <label for="description" class="block text-sm font-medium text-slate-700">Deskripsi kebutuhan</label>

@@ -18,7 +18,9 @@ import (
 	"kerjalancar/internal/config"
 	"kerjalancar/internal/customer"
 	"kerjalancar/internal/db"
+	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
+	"kerjalancar/internal/template"
 	"kerjalancar/internal/web"
 	"kerjalancar/internal/workspace"
 )
@@ -58,6 +60,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	leads := lead.NewStore(pool)
+	leads.ScheduleHook = followup.ScheduleForLead
+	leads.CloseHook = followup.CloseForLead
 	deps := web.Deps{
 		Logger:           logger,
 		DB:               pool,
@@ -66,7 +71,9 @@ func run() error {
 		Auth:             auth.NewService(pool, auth.DefaultParams),
 		Workspaces:       workspace.NewStore(pool),
 		Customers:        customer.NewStore(pool),
-		Leads:            lead.NewStore(pool),
+		Leads:            leads,
+		FollowUps:        followup.NewStore(pool),
+		MessageTemplates: template.NewStore(pool),
 		Templates:        templates,
 		RegistrationOpen: cfg.RegistrationOpen,
 		RegistrationCode: cfg.RegistrationCode,
