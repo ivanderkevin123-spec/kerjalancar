@@ -1,0 +1,2 @@
+nama,total,dp_diterima,tanggal_dp,cicilan_diterima,sisa,jatuh_tempo,status,catatan
+Contoh Pelanggan,35000000,10500000,2026-10-14,0,=B2-D2-F2,2026-11-14,Belum lunas,DP 30%

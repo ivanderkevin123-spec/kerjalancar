@@ -1,0 +1,12 @@
+# Private research data: personal data of interviewees and their customers. Never commit.
+docs/interviews/
+docs/private/
+*.local.md
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store

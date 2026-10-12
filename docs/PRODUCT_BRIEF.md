@@ -2,7 +2,7 @@
 
 Date: 2026-10-12. Status: DRAFT for founder review. Nothing here is validated by customers yet.
 
-Legend used throughout the docs: **[FACT]** verified by us or a cited source · **[ASSUMPTION]** we are acting as if true · **[HYPOTHESIS]** to be tested · **[RECOMMENDATION]** our proposal.
+Legend used throughout the docs: **[FACT]** verified by us (fetched or observed) · **[REPORTED]** secondary source, not independently verified · **[ASSUMPTION]** we are acting as if true · **[HYPOTHESIS]** to be tested · **[RECOMMENDATION]** our proposal.
 
 ## 1. One-paragraph summary
 
@@ -14,7 +14,7 @@ KerjaLancar is a mobile-first web app for small Indonesian service businesses wh
 
 **What supports it**
 
-- [FACT] WhatsApp is the dominant business messaging channel in Indonesia. Meta cited a 2022 Kantar study that 7 of 10 Indonesians prefer business messaging to phone or email (see `COMPETITOR_RESEARCH.md`, sources). WhatsApp passed 3 billion monthly users globally in 2025.
+- [REPORTED] WhatsApp is the dominant business messaging channel in Indonesia. Press reports cite Meta Indonesia citing a 2022 Kantar study that 7 of 10 Indonesians prefer business messaging to phone or email, and Meta's Q1 2025 earnings call for 3 billion monthly WhatsApp users (see `COMPETITOR_RESEARCH.md` §3). We have not read the primary sources.
 - [FACT] The incumbent Indonesian WhatsApp CRM (Mekari Qontak) starts at Rp2,000,000/month with a 5-user minimum (fetched from qontak.com/en/pricing on 2026-10-12). That is priced for mid-size companies, not a 2–10 person contractor or wedding organizer. There is a visible price gap below it.
 - [FACT] Paper.id's pricing page lists invoicing, purchase orders, receipts, and payment reminders (free tier) but does not list quotations or a lead pipeline. The affordable invoicing tools are invoice-first, not lead-first.
 - [ASSUMPTION] High-ticket service businesses with multi-stage payments lose real money to a single forgotten follow-up or an unbilled balance. One lost Rp50 million project dwarfs a Rp150,000/month subscription. This is the ROI story and must be confirmed with specific incidents in interviews.
@@ -26,7 +26,25 @@ KerjaLancar is a mobile-first web app for small Indonesian service businesses wh
 - [HYPOTHESIS] The three candidate segments are not one market. Contractors need line-item quotations with revisions; wedding vendors need package quotations plus a date calendar; workshops need job cards and parts. A generic tool may be "fine" for all and "chosen" by none.
 - [FACT] We have zero customer interviews and zero paying customers. Every statement about customers in this document is a hypothesis.
 
+**Target customer (hypothesis).** The owner-operator of a 2–15 person Indonesian service business who personally answers customer WhatsApp, writes quotations, and chases payments, is on site or on the move most of the day, uses a mid-range Android phone, and takes a DP before work starts.
+
+**Problem being tested.** Not "they lack a CRM" but: leads, quotations, follow-ups, DP, and balances are scattered across WhatsApp threads, a sheet or notebook, and memory, and this scatter causes specific, recent, costly misses.
+
 **Verdict.** The hypothesis is plausible and the price gap is real, but the deciding question is behavioral, not technical: will an owner record leads and payments in a second app while selling in WhatsApp? That is what the first seven days must answer.
+
+## 2a. Why current alternatives may be insufficient (hypotheses, to be checked in interviews)
+
+| Alternative | What it already does well | Where it may fall short for this owner |
+|---|---|---|
+| Doing nothing: WhatsApp + memory | Zero effort, where the conversation already is | No list of who is waiting, no due dates, balances live in the owner's head; the exact failure mode interviewees will describe, if the problem is real |
+| WhatsApp Business app: labels, quick replies, catalog | Free; labels give a crude pipeline; quick replies cover templates | No dates, no amounts, no follow-up queue, no quotation document, no balance; labels are per chat, invisible across staff phones |
+| Spreadsheet or notebook | Flexible; owners already trust it | Painful on a phone, no reminders, no link between quotation, DP, and balance, no share link; often abandoned (to confirm in Q5) |
+| Paper.id (free / Rp90k) | Invoices, receipts, reminders, payment links | Invoice-first: no lead pipeline, no quotation listed on the pricing page [FACT, pricing page]; starts after the sale is won |
+| Kledo / Jurnal | Proper bookkeeping, receivables | Accounting-first; set-up and vocabulary aimed at bookkeepers; no WhatsApp-first follow-up flow [REPORTED] |
+| Qontak / Kommo / Bigin | Real WhatsApp CRMs | Qontak from Rp2,000,000/month, 5-user minimum [FACT]; Kommo and Bigin per user in USD, English-first [REPORTED]; built for sales teams, not an owner on site |
+| Bridestory Pro (segment B) | Inquiry handling inside the marketplace | Only for leads that arrive via Bridestory; DP/balance tracking unknown [REPORTED, TODO] |
+
+If interviews show that WhatsApp labels plus a notebook are "good enough" for most owners, the hypothesis fails regardless of what Qontak costs.
 
 ## 3. Segment analysis
 
@@ -76,7 +94,7 @@ KerjaLancar records what the owner *says* happened: a lead arrived, a quotation 
 
 ## 6. Pricing hypothesis (to be tested, not decided)
 
-[HYPOTHESIS] Rp149,000/month per workspace, up to 3 users, with a 14-day trial. Anchors: Paper.id PaperPlus Rp90,000/month, Kledo Pro Rp159,900/month (third-party comparison, verify), Qontak from Rp2,000,000/month. A second anchor of Rp249,000/month will be tested with contractors. The interview guide asks for a commitment, not an opinion.
+[HYPOTHESIS] Rp149,000/month per workspace, up to 3 users, with a 14-day trial. Anchors: Paper.id PaperPlus Rp90,000/month, Kledo Pro Rp159,900/month (third-party comparison, verify), Qontak from Rp2,000,000/month. A second anchor of Rp249,000/month will be tested with contractors. Prices are raised only at the end of an interview, after workflow, incidents, and alternatives (`INTERVIEW_GUIDE.md` §7). The interview guide asks for a commitment, not an opinion.
 
 ## 7. What would make us stop
 

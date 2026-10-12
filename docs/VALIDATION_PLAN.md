@@ -31,51 +31,76 @@ Channels (the founder does the outreach; nothing is posted publicly by Claude):
 - Marketplace service listings (Tokopedia/Shopee jasa, OLX jasa) for contractors who advertise
 - Every interview ends by asking for two referrals
 
-Outreach message (Bahasa Indonesia, send from the founder's own WhatsApp):
-
-> Halo Pak/Bu [nama], saya Kevin, sedang riset cara usaha [renovasi/WO] mengelola calon pelanggan dan pembayaran lewat WhatsApp. Bukan jualan, saya ingin belajar dari pengalaman Bapak/Ibu selama 30 menit (telepon/WA call/ketemu). Sebagai terima kasih saya kirim [pulsa/kopi Rp50 ribu]. Kira-kira ada waktu minggu ini?
-
-Incentive is optional; decide per contact. Do not promise the product.
+Outreach message, prospect sourcing, prioritisation, and scheduling steps are in `DAY1_EXECUTION.md` (single canonical copy of the WhatsApp message). Incentive is optional; decide per contact. Never imply the product exists.
 
 ## 3. Daily schedule
 
 | Day | Date | Activities | Output |
 |---|---|---|---|
-| 1 | Mon 12 Oct | Founder reviews Phase A docs, approves decisions D-001..D-008. Build prospect list of 25 (15 A, 10 B). Send 15 outreach messages. | Prospect sheet, approvals |
-| 2 | Tue 13 Oct | Send remaining outreach. First 2–3 interviews. Complete competitor "must verify" items 1–6. | Interview notes #1–3 |
+| 1 | Mon 12 Oct | D-001..D-011 approved (done). Run `DAY1_EXECUTION.md`: prospect list of 25 (15 A, 10 B) in a private copy of `templates/prospects.csv`, first 15 outreach messages, 3–5 concierge invitations. | Prospect sheet, outreach log |
+| 2 | Tue 13 Oct | Send remaining outreach. First 2–3 interviews. Concierge setup calls with the first 2 volunteers. Competitor "must verify" items 1–6. | Interview notes #1–3, concierge sheets live |
 | 3 | Wed 14 Oct | 3 interviews. Collect workflow artifacts. Competitor items 7–12. | Notes #4–6, artifacts |
 | 4 | Thu 15 Oct | 3 interviews. Mid-point review: is A recruitable? If < 3 A interviews booked by now, shift effort to B. | Notes #7–9, mid-point memo |
 | 5 | Fri 16 Oct | 2–3 interviews. Re-contact the strongest 4 with the pilot offer (price + start date). | Notes #10–12, commitment log |
 | 6 | Sat 17 Oct | Synthesis: fill scoring sheet, tally thresholds, write `docs/VALIDATION_FINDINGS.md`. | Findings doc |
 | 7 | Sun 18 Oct | Gate G1 decision with the founder. Update `DECISIONS.md`, `ROADMAP.md`, `PROJECT_STATUS.md`. | Go / narrow / pivot / stop |
 
-If interviews slip, extend by up to 4 days rather than lowering the minimums.
+If interviews slip, extend by up to 4 days rather than lowering the minimums (see EXTEND in §5). The concierge test (`CONCIERGE_TEST.md`) runs in parallel from Day 2: setup calls Days 2–3, observation through Day 7; its cohort result is an input to G1.
 
 ## 4. Methods
 
 1. **Problem interviews** (primary). Script in `INTERVIEW_GUIDE.md`. 30 minutes. Record with consent or take verbatim notes. Score the same day.
 2. **Workflow artifact review.** Ask for sanitized screenshots: how a lead looks in their WA, their quotation document, their payment tracking (sheet, notebook, WA label). Count fields they actually track. This tells us the minimum data model and whether double entry is survivable.
 3. **Commitment test.** For interviewees who scored pain ≥ 2, present the one-page concept (verbally or a static mock), then ask: "Kalau mulai [tanggal], Rp149.000/bulan, Bapak/Ibu ikut?" Log the answer on the commitment ladder: (4) pays first month now · (3) agrees to price and a start date in writing (WA message) · (2) wants it, no date · (1) polite interest · (0) no. We do not collect money before a pilot start; a level-3 WA message is the evidence.
-4. **Concierge sheet (optional, cheap).** Offer 2–3 owners a Google Sheet "Pipeline & Tagihan" template today and check after 5 days whether they entered anything. Anyone who fills a sheet unprompted is a strong pilot candidate; anyone who does not is a warning about double entry.
+4. **Concierge test (required, 3–5 owners).** Protocol, metrics, limitations, and privacy safeguards in `CONCIERGE_TEST.md`. It is the only direct test before software exists of whether an owner will enter real leads and payments in a second place (A-04). Its cohort result feeds Gate G1 (§5).
 
-## 5. Evidence thresholds and decision framework (Gate G1)
+## 5. Evidence thresholds and decision framework (Gate G1, Sunday 2026-10-18)
 
-Count only the primary segment unless noted.
+The date is a checkpoint, not an approval. Count the primary segment (A) unless noted. "Specific incident" means a dated event in the last 6 months with an estimated rupiah cost. "Commitment" means commitment-ladder level ≥ 3: price and start date agreed in writing on WhatsApp. Evaluate the outcomes in the order below; the first whose conditions hold is the decision.
 
-**PROCEED (build for A)** requires all of:
+**STOP** (or re-think the problem) when, across both segments:
+
+- ≥ 8 interviews completed and < 50% describe a specific incident, or
+- 0 commitments at any price ≥ Rp99,000/month after ≥ 8 interviews and the concierge test, or
+- Concierge: 0 of ≥ 3 participants record a real lead themselves within 5 days
+
+Write up what we learned and what alternative problem interviewees kept raising. Development does not start.
+
+**PIVOT to B** when A fails the PROCEED pain or workaround criteria below but B, with ≥ 3 interviews, meets them and has ≥ 2 commitments. Run 3 more B interviews and re-run the commitment test before Week 1.
+
+**REVISE PRODUCT** when pain and workaround criteria are met but the product does not fit:
+
+- ≥ 50% of A interviewees rank a capability outside the MVP (full RAB with volumes and unit analysis, progress billing, event calendar) as must-have, or
+- Concierge participants record leads but say the quotation or payment flow does not match how they work
+
+Revise `PRODUCT_BRIEF.md` scope and re-gate within 5 days. If a complete RAB system is the must-have, reassess the niche rather than adding the subsystem (D-002 is re-opened).
+
+**EXTEND** when evidence is insufficient rather than negative:
+
+- Fewer than 5 scored A interviews, or fewer than 3 B interviews when B matters for the decision, or
+- Pain criterion met by 3 of 5 (borderline), or commitments at 1–2 (borderline), or
+- Concierge has < 3 participants or < 5 observation days
+
+Extend by up to 7 days with a named target (e.g., "3 more A interviews, 2 more concierge participants"). Maximum two extensions; after that choose between PIVOT and STOP. Insufficient evidence never results in development.
+
+**NARROW** when PROCEED criteria are met overall but the evidence clusters:
+
+- ≥ 2 of 3 commitments come from one sub-type (e.g., interior studios rather than general contractors), or
+- Must-have features split by sub-type
+
+Name the sub-niche, run 5 more interviews there over ≤ 4 days, then PROCEED for that sub-niche only.
+
+**PROCEED** (build for A) requires all of:
 
 - ≥ 5 A interviews completed with scored notes
-- ≥ 4 of them describe a *specific* incident in the last 6 months of a lost lead, missed follow-up, or unbilled/late balance, with an estimated rupiah cost
+- ≥ 4 of them describe a specific incident of a lost lead, missed follow-up, or unbilled/late balance
 - ≥ 4 already use a manual workaround (sheet, notebook, WA labels, calendar) for the same problem
-- ≥ 3 commitments at level ≥ 3 at Rp149,000/month or higher, with a start date on or before 2026-11-23 (pilot week)
-- Competitor checklist complete and no tool found that already covers lead → quotation → follow-up → DP/balance for this segment at ≤ Rp200,000/month with Indonesian UI
-- The top-3 requested capabilities across interviews fall inside the MVP scope (lead capture, follow-up reminders, quotation link, DP/balance tracking)
+- ≥ 3 commitments at Rp149,000/month or higher with a start date on or before 2026-11-23 (pilot week)
+- Concierge: ≥ 2 of 3 (or ≥ 3 of 5) participants record a real lead themselves within 24 h and return on ≥ 2 later days unprompted
+- Competitor checklist (`COMPETITOR_RESEARCH.md` §4 "must verify") complete and no tool found that already covers lead → quotation → follow-up → DP/balance for this segment at ≤ Rp200,000/month with Indonesian UI
+- The top-3 requested capabilities across interviews fall inside the MVP scope
 
-**NARROW** if PROCEED fails only on commitments or on scope: pick the sub-niche where the incidents cluster (e.g., interior studios rather than general contractors) and run 5 more interviews there over 4 days.
-
-**PIVOT to B** if A fails on pain or workaround criteria but B meets the same thresholds with ≥ 3 interviews. Re-run the commitment test for B before building.
-
-**STOP (or re-think the problem)** if neither segment reaches ≥ 50% specific-incident rate, or no one commits at any price ≥ Rp99,000/month. Write up what we learned and what alternative problem the interviewees kept raising.
+Record the outcome, the counts behind it, and the interview IDs in `VALIDATION_FINDINGS.md` and `DECISIONS.md`.
 
 ## 6. Interview scoring (per interviewee)
 

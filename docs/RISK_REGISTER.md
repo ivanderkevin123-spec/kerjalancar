@@ -8,7 +8,7 @@ Likelihood and impact: L / M / H. Owner is the founder unless noted. Review at e
 
 The conversation lives in WhatsApp. Re-typing name, number, and need into another app is friction the free "do nothing" option does not have.
 
-Mitigations: lead capture in one screen with three fields (name, WA number, need) and a default follow-up date; Android share-sheet into the PWA ("Bagikan ke KerjaLancar") so a WA contact or message becomes a lead; paste-a-message parser using plain regex for phone numbers (no AI); measure time-to-record and weekly writes from pilot day 1.
+Mitigations (v1): lead capture in one screen with three fields (name, WA number, need) and a default follow-up date; measure time-to-record and weekly writes from pilot day 1; test the behavior before software with the concierge test (`CONCIERGE_TEST.md`). Candidate mitigations, only if evidence demands: Android share-sheet into an installable PWA so a WA contact or message becomes a lead; paste-a-message parser using plain regex for phone numbers (no AI).
 Trigger to act: median time-to-record > 20 s or < 50% of pilots write weekly by Week 7.
 
 ### R-02 Willingness to pay is below a viable price (L: M · I: H)
@@ -53,3 +53,5 @@ Trigger: any week where planned slice is not shippable by Friday.
 | R-13 | Hosting cost or vendor lock-in before revenue | L | L | No provisioning until approved; 12-factor config; plain Postgres; Dockerfile portable across Fly/Railway/Render |
 | R-14 | Share-link token leakage exposes a quotation | M | M | 128-bit random tokens, revocable, optional expiry, no customer PII beyond what the quotation already shows |
 | R-15 | Pilots churn silently after Week 7 | M | H | Weekly founder call with each pilot; churn reason mandatory; usage dashboard for the founder |
+| R-16 | HTMX hits a complexity ceiling (quotation editor, future interactive screens) | M | M | Quotation editor budgeted as one JS island with server-authoritative totals; revisit triggers in `ARCHITECTURE.md` §1.4; escape hatch is `/api/v1` on the same service, not a frontend rewrite mid-roadmap |
+| R-17 | Interview notes, prospect lists, and concierge sheets contain personal data of owners and their customers | H | M | Keep in `docs/interviews/` and `docs/private/` (git-ignored, D-017); initials and last-4 digits only in the repo; founder access to concierge sheets revoked at test end (`CONCIERGE_TEST.md` §6) |

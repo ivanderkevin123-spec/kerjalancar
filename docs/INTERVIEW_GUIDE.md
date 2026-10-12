@@ -4,7 +4,7 @@ Tujuan: memahami cara pemilik usaha menangani calon pelanggan, penawaran, follow
 
 Prinsip (dari *The Mom Test*): tanyakan kejadian nyata di masa lalu, bukan pendapat tentang masa depan. Jangan menjelaskan produk sampai bagian 7. Diam setelah bertanya; biarkan mereka bercerita. Catat kutipan asli.
 
-Durasi 30 menit. Minta izin merekam. Catat: tanggal, inisial, segmen (A kontraktor / B WO-vendor), kota, lama usaha, jumlah tim.
+Durasi 20–30 menit. Minta izin merekam. Catat: tanggal, inisial, segmen (A kontraktor / B WO-vendor), kota, lama usaha, jumlah tim.
 
 ---
 
@@ -115,6 +115,18 @@ Skor: Pain __ / Frekuensi __ / Workaround __ / Komitmen __ / Fit __
 | Fit MVP | butuh hal lain | sebagian | alur inti cocok | — |
 
 Komitmen: 0 tidak · 1 sopan tertarik · 2 mau tapi tanpa tanggal · 3 setuju harga + tanggal, tertulis di WA · 4 bayar bulan pertama sekarang.
+
+## Pertanyaan mengarahkan vs netral (contoh)
+
+| Hindari (mengarahkan / hipotetis) | Pakai (perilaku nyata di masa lalu) |
+|---|---|
+| "Pasti sering lupa follow-up ya?" | "Kapan terakhir kali ada calon pelanggan yang terlewat? Ceritakan." |
+| "Kalau ada aplikasi pengingat, mau pakai?" | "Setelah kejadian itu, apa yang Bapak/Ibu ubah?" |
+| "Berapa yang mau Bapak bayar untuk ini?" (di awal) | Tanyakan harga hanya di bagian 7, setelah alur, kejadian, dan alat yang dipakai |
+| "Spreadsheet-nya ribet kan?" | "Terakhir buka spreadsheet itu kapan? Untuk apa?" |
+| "Sisa tagihan pasti susah dilacak ya?" | "Sekarang ada berapa pelanggan yang masih punya sisa tagihan? Tahu angkanya tanpa buka catatan?" |
+
+Bukti perilaku mengalahkan pernyataan: "menarik, nanti saya coba" bernilai 0; "saya catat di buku tiap malam" bernilai 2; balasan WA "oke, mulai tanggal X Rp149 ribu" bernilai 3.
 
 ## Yang tidak boleh dilakukan
 

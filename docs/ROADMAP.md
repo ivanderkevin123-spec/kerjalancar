@@ -4,7 +4,7 @@ Each build week is one vertical slice: migration, logic, UI, tests, docs. A slic
 
 | Week | Dates | Outcome | Acceptance criteria |
 |---|---|---|---|
-| 0 Validation | Oct 12–18 | Gate G1 decision; toolchain ready | ≥ 12 interviews scored; `VALIDATION_FINDINGS.md` written; thresholds in `VALIDATION_PLAN.md` §5 evaluated; Go 1.27 + Postgres + sqlc + goose installed (reversible); decisions D-001..D-008 recorded |
+| 0 Validation | Oct 12–18 | Gate G1 decision | ≥ 12 interviews scored; concierge test run with 3–5 owners (`CONCIERGE_TEST.md`); `VALIDATION_FINDINGS.md` written; six-outcome thresholds in `VALIDATION_PLAN.md` §5 evaluated; D-012..D-017 decided; toolchain installs (Go 1.27, Postgres, sqlc, goose) only after the founder's explicit go-ahead |
 | 1 Skeleton + auth | Oct 19–25 | A business can sign up, log in, and invite one staff member; nobody can see another workspace | Repo, Dockerfile, CI green with Postgres; migrations; register/login/logout/reset; workspace + membership + roles; session security; cross-tenant test harness passes for `workspace` and `membership`; health check; structured logs |
 | 2 Customers + leads | Oct 26–Nov 1 | Owner records a lead in ≤ 15 s on a phone and moves it through the pipeline | Customer CRUD with WA number validation; lead stages Baru → Dihubungi → Penawaran → Menang/Kalah; activity log; list/search; empty states; cross-tenant matrix extended; mobile layout checked on a budget Android |
 | 3 Quotations | Nov 2–8 | Owner sends a quotation as a link and sees whether it was opened | Line items with integer-rupiah math and rounding tests; validity date; status draft/sent/accepted/rejected/expired; public share page with revocable token and print CSS; "opened at" tracking; WA template "kirim penawaran" with wa.me link |
@@ -19,6 +19,20 @@ Each build week is one vertical slice: migration, logic, UI, tests, docs. A slic
 - **G1 (Oct 18):** proceed / narrow / pivot / stop per `VALIDATION_PLAN.md` §5. Weeks 1–8 do not start without it.
 - **Staging approval (Week 5):** provisioning any hosted resource requires the founder's explicit approval and a stated monthly cost.
 - **G2 (Dec 13):** continue / narrow / pivot / stop per `VALIDATION_PLAN.md` §8.
+
+## Traceability: slice → assumptions, risks, and the test that proves it
+
+| Week | Validates assumptions | Mitigates risks | Proof |
+|---|---|---|---|
+| 0 | A-02, A-03, A-04, A-05, A-06, A-07, A-14 | R-02, R-03 | Scored interviews, concierge metrics, G1 record |
+| 1 | A-13 | R-04 | Cross-tenant matrix for workspace and membership; session and CSRF tests; `govulncheck` |
+| 2 | A-04, A-10 | R-01, R-05 | Time-to-record measured on a budget Android; cross-tenant matrix for customers and leads |
+| 3 | A-07, A-14 | R-05, R-09, R-14, R-16 | Money rounding table tests; share-token tests; JS island stays within one controller |
+| 4 | A-11, A-19 | R-09, R-11 | Balance computed in SQL equals Go; idempotency and reversal tests; `FOR UPDATE` concurrency test |
+| 5 | A-12, A-15 | R-10 | Zone-boundary tests for "hari ini"; staging smoke tests after approval |
+| 6 | A-05, A-08 | R-02, R-06 | Pilots paying month one; onboarding ≤ 2 min measured |
+| 7 | A-16 | R-04, R-07, R-15 | Restore drill log; threat-model checklist; export/delete verified |
+| 8 | A-05 | R-02, R-15 | Pilot metrics from events; G2 record |
 
 ## Slip policy
 
