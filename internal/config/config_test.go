@@ -84,3 +84,22 @@ func TestLoadTrustedProxy(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TRUSTED_PROXY")
 }
+
+func TestLoadRegistrationDefaultsByEnvironment(t *testing.T) {
+	dev, err := config.Load(getter(map[string]string{"DATABASE_URL": "x"}))
+	require.NoError(t, err)
+	assert.True(t, dev.RegistrationOpen, "open in development")
+
+	prod, err := config.Load(getter(map[string]string{"DATABASE_URL": "x", "APP_ENV": "production", "BASE_URL": "https://app.example"}))
+	require.NoError(t, err)
+	assert.False(t, prod.RegistrationOpen, "closed in production unless enabled")
+
+	prodOpen, err := config.Load(getter(map[string]string{"DATABASE_URL": "x", "APP_ENV": "production", "BASE_URL": "https://app.example", "REGISTRATION_OPEN": "true", "REGISTRATION_CODE": " pilot-2026 "}))
+	require.NoError(t, err)
+	assert.True(t, prodOpen.RegistrationOpen)
+	assert.Equal(t, "pilot-2026", prodOpen.RegistrationCode, "code is trimmed")
+
+	_, err = config.Load(getter(map[string]string{"DATABASE_URL": "x", "REGISTRATION_OPEN": "maybe"}))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "REGISTRATION_OPEN")
+}

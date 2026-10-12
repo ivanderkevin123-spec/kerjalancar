@@ -19,6 +19,11 @@ type Config struct {
 	// TrustedProxy enables reading the client IP from X-Forwarded-For / X-Real-IP.
 	// Only true when the app sits behind a proxy that overwrites those headers.
 	TrustedProxy bool
+	// RegistrationOpen allows self-registration at /daftar. Defaults to true
+	// outside production; production must opt in explicitly.
+	RegistrationOpen bool
+	// RegistrationCode, when set, must be supplied on the registration form.
+	RegistrationCode string
 }
 
 // Getter returns the value of an environment variable, or "" when unset.
@@ -67,6 +72,16 @@ func Load(get Getter) (Config, error) {
 		}
 		cfg.TrustedProxy = v
 	}
+
+	cfg.RegistrationOpen = cfg.Env != "production"
+	if raw := strings.TrimSpace(get("REGISTRATION_OPEN")); raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("REGISTRATION_OPEN must be true or false (got %q)", raw))
+		}
+		cfg.RegistrationOpen = v
+	}
+	cfg.RegistrationCode = strings.TrimSpace(get("REGISTRATION_CODE"))
 
 	if cfg.Env == "production" && !strings.HasPrefix(cfg.BaseURL, "https://") {
 		errs = append(errs, errors.New("BASE_URL must use https in production"))
