@@ -1,0 +1,55 @@
+# Risk Register
+
+Likelihood and impact: L / M / H. Owner is the founder unless noted. Review at every gate.
+
+## Top five risks
+
+### R-01 Double entry kills adoption (L: H · I: H)
+
+The conversation lives in WhatsApp. Re-typing name, number, and need into another app is friction the free "do nothing" option does not have.
+
+Mitigations: lead capture in one screen with three fields (name, WA number, need) and a default follow-up date; Android share-sheet into the PWA ("Bagikan ke KerjaLancar") so a WA contact or message becomes a lead; paste-a-message parser using plain regex for phone numbers (no AI); measure time-to-record and weekly writes from pilot day 1.
+Trigger to act: median time-to-record > 20 s or < 50% of pilots write weekly by Week 7.
+
+### R-02 Willingness to pay is below a viable price (L: M · I: H)
+
+Micro businesses may value the tool at Rp0–50,000/month, below what sustains support and hosting.
+
+Mitigations: ask for a commitment with a price and a start date in every interview; run pilots as paid from month one (discounted, not free); ROI framing in onboarding ("satu proyek yang tidak hilang"); test two anchors (Rp149k, Rp249k).
+Trigger: < 3 level-3 commitments at G1, or < 2 paid month-2 renewals at G2.
+
+### R-03 Wrong niche or a niche that is really three (L: M · I: H)
+
+Contractors may need RAB depth; wedding vendors need a calendar; a generic tool is nobody's first choice.
+
+Mitigations: parallel A/B interviews with the same scoring sheet; strict MVP boundary with a "not in v1" list; segment-specific features only after G1 names the segment; narrow rather than widen when signals split.
+Trigger: top-3 feature requests differ by segment and fall outside MVP.
+
+### R-04 Cross-tenant data leakage or an auth defect (L: M · I: H)
+
+A single bug exposing one business's customers to another ends the product's reputation in a referral-driven market.
+
+Mitigations: workspace_id on every tenant table with composite foreign keys so a child row cannot reference another workspace's parent; workspace resolved from the session, never from the request; repository layer requires workspace_id on every query; generated cross-tenant test matrix (read, update, delete, list) for every resource; CSRF, secure cookies, Argon2id, rate limits on login and share links; threat model before staging; consider Postgres RLS in Week 7.
+Trigger: any cross-tenant test failure blocks merge.
+
+### R-05 Scope creep from the segment's "real" workflow (L: H · I: M)
+
+RAB with volumes and unit analysis, progress billing, pekerjaan tambah-kurang, event calendars, inventory, tax invoices.
+
+Mitigations: `DECISIONS.md` entry required for every scope addition; each slice has a written acceptance criterion; features that interviewees rank below 3 wait for G2; keep accounting out by policy (`PRODUCT_BRIEF.md` §5).
+Trigger: any week where planned slice is not shippable by Friday.
+
+## Other risks tracked
+
+| ID | Risk | L | I | Mitigation |
+|---|---|---|---|---|
+| R-06 | Solo-founder capacity: interviews, building, and selling compete for the same hours | H | M | Week 0 is validation-only; build weeks have one slice each; cut scope before cutting tests |
+| R-07 | Personal-data obligations (UU PDP 27/2022) for customers' names and numbers; cross-border hosting | M | M | Verify obligations before staging; privacy notice and data export/delete in Week 7; Singapore region as default pending verification |
+| R-08 | WhatsApp changes click-to-chat behavior or policy | L | M | wa.me is an official, long-standing feature; templates stay copy-paste-able as fallback |
+| R-09 | Monetary rounding errors or inconsistent totals | M | M | Integer rupiah; quantity with fixed scale; one rounding function with table-driven tests; stored totals recomputed and asserted |
+| R-10 | Time-zone mistakes in due dates and "today" lists | M | M | Workspace time zone; DATE columns for due dates; tests at zone boundaries |
+| R-11 | Duplicate or lost payment records | M | M | Idempotency key per payment submission; append-only payments with reversal records, never silent edits |
+| R-12 | Go toolchain upgrade (1.17.5 → 1.27.x) disturbs the founder's other Go projects | M | L | Install via Homebrew and manage PATH per project, or use `go.mod` toolchain directive; founder decides (D-004) |
+| R-13 | Hosting cost or vendor lock-in before revenue | L | L | No provisioning until approved; 12-factor config; plain Postgres; Dockerfile portable across Fly/Railway/Render |
+| R-14 | Share-link token leakage exposes a quotation | M | M | 128-bit random tokens, revocable, optional expiry, no customer PII beyond what the quotation already shows |
+| R-15 | Pilots churn silently after Week 7 | M | H | Weekly founder call with each pilot; churn reason mandatory; usage dashboard for the founder |
