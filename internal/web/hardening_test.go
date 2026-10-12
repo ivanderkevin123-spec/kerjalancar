@@ -103,7 +103,7 @@ func TestSessionStoreFailureRendersTheIndonesianErrorPage(t *testing.T) {
 		d.Sessions = sm
 	})
 	c := app.client(t)
-	c.cookies["kl_session"] = &http.Cookie{Name: "kl_session", Value: "apa-saja"}
+	c.cookies["kl_session"] = &http.Cookie{Name: "kl_session", Value: "apa-saja"} //nolint:gosec // G124: a bogus token on purpose
 	rec := c.get("/masuk")
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Terjadi kesalahan")
@@ -158,12 +158,12 @@ func TestPasswordsNeverReachTheLogs(t *testing.T) {
 	})
 	c := app.client(t)
 	e := email(t)
-	const secret = "sandi-unik-7f3a9c"
-	c.post("/daftar", url.Values{"name": {"A"}, "workspace_name": {"W"}, "email": {e}, "password": {secret}})
+	const marker = "sandi-unik-7f3a9c" // distinctive test input; must never appear in logs
+	c.post("/daftar", url.Values{"name": {"A"}, "workspace_name": {"W"}, "email": {e}, "password": {marker}})
 	c.post("/keluar", url.Values{})
-	c.login(e, secret+"-salah")
-	c.login(e, secret)
-	assert.NotContains(t, buf.String(), secret)
+	c.login(e, marker+"-salah")
+	c.login(e, marker)
+	assert.NotContains(t, buf.String(), marker)
 	assert.NotContains(t, buf.String(), "kl_session=")
 }
 

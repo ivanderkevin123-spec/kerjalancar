@@ -18,7 +18,7 @@ import (
 // Binds a local port. Inside the Claude Code sandbox this needs
 // sandbox.network.allowLocalBinding: true; otherwise run from a normal terminal.
 func TestServeFinishesInFlightRequestOnCancel(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	started := make(chan struct{})
@@ -69,7 +69,7 @@ func TestServeFinishesInFlightRequestOnCancel(t *testing.T) {
 }
 
 func TestServeReturnsListenerErrors(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	_ = ln.Close() // a closed listener makes Serve fail immediately
 

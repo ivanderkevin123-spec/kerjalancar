@@ -49,7 +49,7 @@ func run() error {
 	defer pool.Close()
 
 	addr := net.JoinHostPort("", strconv.Itoa(cfg.Port))
-	ln, err := net.Listen("tcp", addr)
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", addr)
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", addr, err)
 	}

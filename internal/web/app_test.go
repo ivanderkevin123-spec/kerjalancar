@@ -73,7 +73,7 @@ func (c *client) do(method, path string, form url.Values, headers map[string]str
 	if form != nil {
 		body = strings.NewReader(form.Encode())
 	}
-	req := httptest.NewRequest(method, "http://example.com"+path, body)
+	req := httptest.NewRequestWithContext(context.Background(), method, "http://example.com"+path, body)
 	if form != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}

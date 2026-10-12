@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +19,7 @@ func loggedIP(t *testing.T, trustProxy bool) string {
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 	h := web.NewRouter(web.Deps{Logger: logger, DB: fakePinger{}, TrustProxy: trustProxy})
 
-	req := httptest.NewRequest(http.MethodGet, "/nope", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/nope", nil)
 	req.RemoteAddr = "10.0.0.7:4321"
 	req.Header.Set("X-Forwarded-For", "203.0.113.9")
 	h.ServeHTTP(httptest.NewRecorder(), req)

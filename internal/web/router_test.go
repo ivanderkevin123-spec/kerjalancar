@@ -36,7 +36,7 @@ func newRouter(db web.Pinger) http.Handler {
 
 func TestHealthz(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newRouter(fakePinger{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	newRouter(fakePinger{}).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil))
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "application/json; charset=utf-8", rec.Header().Get("Content-Type"))
 	assert.JSONEq(t, `{"status":"ok"}`, rec.Body.String())
@@ -44,14 +44,14 @@ func TestHealthz(t *testing.T) {
 
 func TestReadyzOK(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newRouter(fakePinger{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	newRouter(fakePinger{}).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.JSONEq(t, `{"status":"ok"}`, rec.Body.String())
 }
 
 func TestReadyzReportsDatabaseFailure(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newRouter(fakePinger{err: errors.New("connection refused")}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	newRouter(fakePinger{err: errors.New("connection refused")}).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	assert.JSONEq(t, `{"status":"unavailable","check":"database"}`, rec.Body.String())
 }
@@ -59,13 +59,13 @@ func TestReadyzReportsDatabaseFailure(t *testing.T) {
 func TestReadyzTimesOut(t *testing.T) {
 	start := time.Now()
 	rec := httptest.NewRecorder()
-	newRouter(blockingPinger{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	newRouter(blockingPinger{}).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	assert.Less(t, time.Since(start), 3*time.Second, "readyz must give up after its 2s budget")
 }
 
 func TestUnknownRouteIs404(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newRouter(fakePinger{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/nope", nil))
+	newRouter(fakePinger{}).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/nope", nil))
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
