@@ -5,12 +5,20 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httprate"
+
+	"kerjalancar/internal/auth"
+	"kerjalancar/internal/workspace"
 )
 
 // Pinger is the only thing the router needs from the database layer today.
@@ -19,14 +27,34 @@ type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
-// Deps are the collaborators the router needs. Keep this struct small.
+// Deps are the collaborators the router needs. With Sessions nil the router
+// serves only health endpoints and static files (used by infrastructure tests).
 type Deps struct {
 	Logger *slog.Logger
 	DB     Pinger
 	// TrustProxy: honour X-Forwarded-For / X-Real-IP. Never set it unless a
 	// trusted proxy in front of the app overwrites those headers.
 	TrustProxy bool
+
+	Sessions         *scs.SessionManager
+	Auth             *auth.Service
+	Workspaces       *workspace.Store
+	Templates        *Templates
+	RegistrationOpen bool
+	RegistrationCode string
+	BaseURL          string // trusted origin for CSRF checks behind a proxy
 }
+
+// server groups the dependencies for handler methods.
+type server struct {
+	Deps
+}
+
+const (
+	loginLimitPerIP       = 10 // requests per minute per client IP, per endpoint
+	loginLimitPerEmail    = 5  // login attempts per minute per e-mail
+	registerLimitPerEmail = 10 // registration attempts per e-mail; typo corrections must not lock people out
+)
 
 const (
 	requestTimeout = 30 * time.Second
@@ -47,7 +75,77 @@ func NewRouter(d Deps) http.Handler {
 	r.Get("/healthz", handleHealthz)
 	r.Get("/readyz", handleReadyz(d.DB))
 
+	static, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		panic("web: static fs: " + err.Error())
+	}
+	r.Handle("/static/*", cacheFor(time.Hour, noListing(http.StripPrefix("/static/", http.FileServerFS(static)))))
+
+	if d.Sessions == nil {
+		return r
+	}
+	s := &server{Deps: d}
+
+	csrf := http.NewCrossOriginProtection()
+	if d.BaseURL != "" {
+		if err := csrf.AddTrustedOrigin(d.BaseURL); err != nil {
+			panic("web: BASE_URL is not a valid origin: " + err.Error())
+		}
+	}
+	csrf.SetDenyHandler(http.HandlerFunc(s.forbidden))
+
+	r.NotFound(s.notFound)
+	r.MethodNotAllowed(s.methodNotAllowed)
+
+	r.Group(func(r chi.Router) {
+		r.Use(func(next http.Handler) http.Handler { return csrf.Handler(next) })
+		r.Use(d.Sessions.LoadAndSave)
+
+		r.Get("/", s.root)
+		r.Get("/masuk", s.getMasuk)
+		r.With(s.authLimits(loginLimitPerEmail)...).Post("/masuk", s.postMasuk)
+		r.Get("/daftar", s.getDaftar)
+		r.With(s.authLimits(registerLimitPerEmail)...).Post("/daftar", s.postDaftar)
+		r.Post("/keluar", s.postKeluar)
+
+		r.Route("/app", func(r chi.Router) {
+			r.Use(s.requireLogin)
+			r.Get("/", s.getBeranda)
+			r.Get("/pengaturan", s.getPengaturan)
+			r.Post("/pengaturan", s.postPengaturan)
+		})
+	})
+
 	return r
+}
+
+// authLimits throttles a credential endpoint per client IP and per e-mail.
+// Each call creates fresh counters, so each endpoint and router has its own.
+func (s *server) authLimits(perEmail int) []func(http.Handler) http.Handler {
+	deny := httprate.WithLimitHandler(s.tooManyRequests)
+	byIP := httprate.Limit(loginLimitPerIP, time.Minute, httprate.WithKeyByIP(), deny)
+	byEmail := httprate.Limit(perEmail, time.Minute, httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
+		return "email:" + auth.NormalizeEmail(r.FormValue("email")), nil
+	}), deny)
+	return []func(http.Handler) http.Handler{byIP, byEmail}
+}
+
+// noListing refuses directory paths so the embedded asset folder is never listed.
+func noListing(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func cacheFor(d time.Duration, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age="+strconv.Itoa(int(d.Seconds())))
+		next.ServeHTTP(w, r)
+	})
 }
 
 // handleHealthz answers "the process is up". It must not touch dependencies.

@@ -1,0 +1,27 @@
+{{define "auth"}}<!doctype html>
+<html lang="id" class="h-full bg-slate-50">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · KerjaLancar</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body class="min-h-full flex flex-col" hx-boost="true">
+  <main class="flex-1 flex items-center justify-center px-4 py-10">
+    <div class="w-full max-w-md">
+      <div class="mb-6 text-center">
+        <a href="/" class="inline-flex items-center gap-2 text-2xl font-semibold text-teal-700">
+          <span class="inline-block h-8 w-8 rounded-lg bg-teal-600"></span> KerjaLancar
+        </a>
+        <p class="mt-1 text-sm text-slate-500">Catat calon pelanggan, penawaran, dan pembayaran lewat WhatsApp.</p>
+      </div>
+      {{template "flash" .}}
+      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        {{template "content" .}}
+      </div>
+    </div>
+  </main>
+  <footer class="py-4 text-center text-xs text-slate-400">© {{.Year}} KerjaLancar</footer>
+</body>
+</html>{{end}}

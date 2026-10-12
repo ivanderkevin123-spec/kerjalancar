@@ -1,8 +1,11 @@
 SHELL := /bin/bash
 GO ?= go
+TAILWIND ?= .toolchain/bin/tailwindcss
+TAILWIND_VERSION ?= v4.3.3
+TAILWIND_PLATFORM ?= macos-arm64
 LOAD_ENV = set -a; [ -f .env ] && source .env; set +a;
 
-.PHONY: help run test test-db lint vet migrate migrate-status db-up db-down db-logs tidy
+.PHONY: help run build test test-db lint vet migrate migrate-status db-up db-down db-logs tidy css css-tool css-watch css-npm
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -39,3 +42,21 @@ db-logs: ## Tail Postgres logs
 
 tidy: ## go mod tidy
 	$(GO) mod tidy
+
+build: ## Build binaries into bin/
+	$(GO) build -o bin/server ./cmd/server && $(GO) build -o bin/migrate ./cmd/migrate
+
+css-tool: ## Download the Tailwind v4 standalone CLI into .toolchain/bin (set TAILWIND_PLATFORM=linux-x64 on Linux)
+	mkdir -p .toolchain/bin && curl -fL --http1.1 -o $(TAILWIND) https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-$(TAILWIND_PLATFORM) && chmod +x $(TAILWIND)
+	@test $$(wc -c < $(TAILWIND)) -gt 50000000 || { echo "download truncated (GitHub CDN); use 'make css-npm' instead"; rm -f $(TAILWIND); exit 1; }
+
+css: ## Build internal/web/static/app.css from static/src/app.css (committed; rerun after template changes)
+	$(TAILWIND) -i internal/web/static/src/app.css -o internal/web/static/app.css --minify
+
+css-watch: ## Rebuild CSS on template changes
+	$(TAILWIND) -i internal/web/static/src/app.css -o internal/web/static/app.css --watch
+
+css-npm: ## Fallback: build CSS with Node (tailwindcss + @tailwindcss/cli in git-ignored .toolchain/tw)
+	mkdir -p .toolchain/tw && cd .toolchain/tw && ([ -f package.json ] || npm init -y >/dev/null) && npm install --no-audit --no-fund --silent tailwindcss@$(TAILWIND_VERSION:v%=%) @tailwindcss/cli@$(TAILWIND_VERSION:v%=%)
+	ln -sfn .toolchain/tw/node_modules node_modules
+	.toolchain/tw/node_modules/.bin/tailwindcss -i internal/web/static/src/app.css -o internal/web/static/app.css --minify
