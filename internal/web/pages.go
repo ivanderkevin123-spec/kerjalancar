@@ -1,0 +1,53 @@
+package web
+
+import (
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5/middleware"
+)
+
+// render writes a page; a template failure becomes a logged 500 with no partial output.
+func (s *server) render(w http.ResponseWriter, r *http.Request, status int, page string, v *View) {
+	if err := s.Templates.Render(w, status, page, v); err != nil {
+		s.Logger.ErrorContext(r.Context(), "render page",
+			slog.String("request_id", middleware.GetReqID(r.Context())), slog.String("page", page), slog.Any("err", err))
+		http.Error(w, "Terjadi kesalahan. Coba lagi beberapa saat.", http.StatusInternalServerError)
+	}
+}
+
+// errorPage renders the shared error page. It must not touch the session:
+// some callers (CSRF denial, rate limiting) run before the session is loaded.
+func (s *server) errorPage(w http.ResponseWriter, r *http.Request, status int, heading, message string) {
+	v := newView(heading)
+	v.Heading = heading
+	v.Message = message
+	v.RegistrationOpen = s.RegistrationOpen
+	s.render(w, r, status, "error", v)
+}
+
+func (s *server) notFound(w http.ResponseWriter, r *http.Request) {
+	s.errorPage(w, r, http.StatusNotFound, "Halaman tidak ditemukan", "Alamat yang Anda buka tidak ada atau sudah dipindahkan.")
+}
+
+func (s *server) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
+	s.errorPage(w, r, http.StatusMethodNotAllowed, "Metode tidak didukung", "Permintaan ini tidak dapat diproses.")
+}
+
+func (s *server) badRequest(w http.ResponseWriter, r *http.Request) {
+	s.errorPage(w, r, http.StatusBadRequest, "Permintaan tidak valid", "Data formulir tidak dapat dibaca. Muat ulang halaman dan coba lagi.")
+}
+
+func (s *server) forbidden(w http.ResponseWriter, r *http.Request) {
+	s.errorPage(w, r, http.StatusForbidden, "Permintaan ditolak", "Permintaan berasal dari situs lain. Muat ulang halaman dan coba lagi.")
+}
+
+func (s *server) tooManyRequests(w http.ResponseWriter, r *http.Request) {
+	s.errorPage(w, r, http.StatusTooManyRequests, "Terlalu banyak percobaan", "Tunggu satu menit lalu coba lagi.")
+}
+
+func (s *server) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	s.Logger.ErrorContext(r.Context(), "request failed",
+		slog.String("request_id", middleware.GetReqID(r.Context())), slog.String("path", r.URL.Path), slog.Any("err", err))
+	s.errorPage(w, r, http.StatusInternalServerError, "Terjadi kesalahan", "Coba lagi beberapa saat. Jika berulang, hubungi tim KerjaLancar.")
+}
