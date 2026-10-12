@@ -29,14 +29,14 @@ jobs:
       TEST_DATABASE_URL: postgres://kerjalancar:kerjalancar@localhost:5432/kerjalancar_test?sslmode=disable
       REQUIRE_DB: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
       - run: go mod download
       - run: go vet ./...
-      - uses: golangci/golangci-lint-action@v8
+      - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
       - run: go test -race -count=1 ./...

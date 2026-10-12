@@ -25,8 +25,10 @@ type Params struct {
 var DefaultParams = Params{MemoryKiB: 64 * 1024, Time: 3, Threads: 2}
 
 const (
-	argonSaltLen   = 16
-	argonKeyLen    = 32
+	argonSaltLen = 16
+	argonKeyLen  = 32
+	// maxKeyLen bounds the key length accepted from a stored hash.
+	maxKeyLen      = 1024
 	maxPasswordLen = 1024
 )
 
@@ -79,9 +81,9 @@ func VerifyPassword(password, hash string) (bool, error) {
 		return false, errMalformedHash
 	}
 	want, err := base64.RawStdEncoding.DecodeString(parts[5])
-	if err != nil || len(want) == 0 {
+	if err != nil || len(want) == 0 || len(want) > maxKeyLen {
 		return false, errMalformedHash
 	}
-	got := argon2.IDKey([]byte(password), salt, iterations, memory, threads, uint32(len(want)))
+	got := argon2.IDKey([]byte(password), salt, iterations, memory, threads, uint32(len(want))) //nolint:gosec // G115: len(want) <= maxKeyLen
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }

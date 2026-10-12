@@ -2,14 +2,14 @@ package db_test
 
 import (
 	"context"
-	"fmt"
-	"math/rand/v2"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"kerjalancar/internal/db"
@@ -23,7 +23,7 @@ func TestMigrateConcurrentOnFreshDatabase(t *testing.T) {
 	admin := testdb.Pool(t)
 	ctx := context.Background()
 
-	name := fmt.Sprintf("kl_race_%d", rand.IntN(1_000_000))
+	name := "kl_race_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
 	_, err := admin.Exec(ctx, "CREATE DATABASE "+name)
 	require.NoError(t, err)
 	t.Cleanup(func() {

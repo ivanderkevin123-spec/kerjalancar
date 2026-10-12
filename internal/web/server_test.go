@@ -18,7 +18,7 @@ import (
 // Binds a local port. Inside the Claude Code sandbox this needs
 // sandbox.network.allowLocalBinding: true; otherwise run from a normal terminal.
 func TestServeFinishesInFlightRequestOnCancel(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	started := make(chan struct{})
@@ -41,13 +41,21 @@ func TestServeFinishesInFlightRequestOnCancel(t *testing.T) {
 	}()
 
 	var (
-		resp    *http.Response
+		status  int
+		body    []byte
 		respErr error
 	)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		resp, respErr = http.Get("http://" + ln.Addr().String() + "/slow") //nolint:noctx // test client
+		resp, err := http.Get("http://" + ln.Addr().String() + "/slow") //nolint:noctx // test client
+		if err != nil {
+			respErr = err
+			return
+		}
+		defer func() { _ = resp.Body.Close() }()
+		status = resp.StatusCode
+		body, respErr = io.ReadAll(resp.Body)
 	}()
 
 	<-started
@@ -56,14 +64,12 @@ func TestServeFinishesInFlightRequestOnCancel(t *testing.T) {
 
 	require.NoError(t, serveErr)
 	require.NoError(t, respErr)
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "done", string(body))
 }
 
 func TestServeReturnsListenerErrors(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	_ = ln.Close() // a closed listener makes Serve fail immediately
 

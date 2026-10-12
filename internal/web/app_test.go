@@ -73,7 +73,7 @@ func (c *client) do(method, path string, form url.Values, headers map[string]str
 	if form != nil {
 		body = strings.NewReader(form.Encode())
 	}
-	req := httptest.NewRequest(method, "http://example.com"+path, body)
+	req := httptest.NewRequestWithContext(context.Background(), method, "http://example.com"+path, body)
 	if form != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
@@ -241,13 +241,13 @@ func TestSessionRotatesOnLoginAndDiesOnLogout(t *testing.T) {
 	assert.NotEqual(t, first, second, "session token rotates on login")
 
 	stale := app.client(t)
-	stale.cookies["kl_session"] = &http.Cookie{Name: "kl_session", Value: first}
+	stale.cookies["kl_session"] = &http.Cookie{Name: "kl_session", Value: first} //nolint:gosec // G124: replaying a captured token on purpose
 	assert.Equal(t, http.StatusSeeOther, stale.get("/app").Code, "old token is invalid after rotation")
 	assert.Equal(t, http.StatusOK, c.get("/app").Code)
 
 	c.post("/keluar", url.Values{})
 	dead := app.client(t)
-	dead.cookies["kl_session"] = &http.Cookie{Name: "kl_session", Value: second}
+	dead.cookies["kl_session"] = &http.Cookie{Name: "kl_session", Value: second} //nolint:gosec // G124: replaying a captured token on purpose
 	assert.Equal(t, http.StatusSeeOther, dead.get("/app").Code, "token is invalid after logout")
 }
 

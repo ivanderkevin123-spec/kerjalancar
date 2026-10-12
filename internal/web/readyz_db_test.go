@@ -19,7 +19,7 @@ func TestReadyzWithRealDatabase(t *testing.T) {
 	pool := testdb.Pool(t)
 
 	rec := httptest.NewRecorder()
-	newRouter(pool).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	newRouter(pool).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	// A separate pool that has been closed must make readyz report unavailable;
@@ -29,7 +29,7 @@ func TestReadyzWithRealDatabase(t *testing.T) {
 	closed.Close()
 
 	rec = httptest.NewRecorder()
-	newRouter(closed).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	newRouter(closed).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	assert.JSONEq(t, `{"status":"unavailable","check":"database"}`, rec.Body.String())
 }

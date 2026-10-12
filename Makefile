@@ -26,8 +26,10 @@ test-db: ## Same as test but fails if the database is not reachable (used in CI)
 vet: ## go vet
 	$(GO) vet ./...
 
-lint: vet ## golangci-lint if installed, otherwise vet only
-	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "golangci-lint not installed; ran go vet only"; fi
+GOLANGCI_LINT_VERSION ?= v2.14.0
+
+lint: vet ## golangci-lint (same version as CI; installed binary if present, otherwise go run into the module cache)
+	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...; fi
 
 migrate: ## Apply pending migrations to DATABASE_URL
 	@$(LOAD_ENV) $(GO) run ./cmd/migrate up

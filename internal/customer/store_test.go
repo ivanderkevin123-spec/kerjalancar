@@ -27,10 +27,6 @@ func newWorkspace(t *testing.T) (ws, user uuid.UUID) {
 	return wsID, u.ID
 }
 
-func validInput(name string) customer.Input {
-	return customer.Input{Name: name, Phone: "+62812" + uuid.NewString()[:7], Email: "", Company: "", Notes: ""}
-}
-
 func TestValidateNormalisesAndReportsFieldErrors(t *testing.T) {
 	in, errs := customer.Validate(customer.Input{Name: "  Budi  ", Phone: "0812-3456-7890", Email: " Budi@Contoh.ID ", Company: " PT Maju ", Notes: " catatan "})
 	assert.Empty(t, errs)
