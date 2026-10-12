@@ -15,6 +15,10 @@
 
 {{template "prospek_meta" .}}
 
+{{template "prospek_followup" .}}
+
+{{template "prospek_wa" .}}
+
 <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
   {{template "prospek_status" .}}
   {{template "prospek_catatan" .}}
@@ -34,7 +38,7 @@
   <div><dt class="text-slate-500">Estimasi nilai</dt><dd class="font-medium text-slate-900">{{if .EstimatedValue}}{{rupiah .EstimatedValue}}{{else}}<span class="text-slate-400">Belum ada</span>{{end}}</dd></div>
   <div><dt class="text-slate-500">Jenis proyek</dt><dd class="font-medium text-slate-900">{{if .ProjectType}}{{.ProjectType.Label}}{{else}}<span class="text-slate-400">–</span>{{end}}</dd></div>
   <div><dt class="text-slate-500">Sumber</dt><dd class="font-medium text-slate-900">{{if .Source}}{{.Source.Label}}{{else}}<span class="text-slate-400">–</span>{{end}}</dd></div>
-  <div><dt class="text-slate-500">Follow-up berikutnya</dt><dd class="font-medium {{if lewat .NextFollowUpOn $.Loc}}text-rose-600{{else}}text-slate-900{{end}}">{{if .NextFollowUpOn}}{{tanggal .NextFollowUpOn}}{{if lewat .NextFollowUpOn $.Loc}} (terlewat){{end}}{{else}}<span class="text-slate-400">Belum dijadwalkan</span>{{end}}</dd></div>
+  <div><dt class="text-slate-500">Follow-up berikutnya</dt><dd class="font-medium {{if lewat .NextFollowUpOn $.Today}}text-rose-600{{else}}text-slate-900{{end}}">{{if .NextFollowUpOn}}{{tanggal .NextFollowUpOn}}{{if lewat .NextFollowUpOn $.Today}} (terlewat){{end}}{{else}}<span class="text-slate-400">Belum dijadwalkan</span>{{end}}</dd></div>
   {{if .LostReason}}<div class="col-span-2 sm:col-span-4"><dt class="text-slate-500">Alasan kalah</dt><dd class="text-slate-900">{{.LostReason}}</dd></div>{{end}}
   {{if .Description}}<div class="col-span-2 sm:col-span-4"><dt class="text-slate-500">Deskripsi kebutuhan</dt><dd class="whitespace-pre-line text-slate-900">{{.Description}}</dd></div>{{end}}
   {{if .Notes}}<div class="col-span-2 sm:col-span-4"><dt class="text-slate-500">Catatan internal</dt><dd class="whitespace-pre-line text-slate-900">{{.Notes}}</dd></div>{{end}}
@@ -89,6 +93,81 @@
 {{else}}
 <p class="mt-3 text-sm text-slate-500">Belum ada riwayat.</p>
 {{end}}
+{{end}}
+
+{{define "prospek_followup"}}
+<section id="followup-panel" class="mt-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Follow-up</h2>
+  {{if .Data.FollowUpMsg}}<div role="status" class="mt-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">{{.Data.FollowUpMsg}}</div>{{end}}
+  {{if .Data.FollowUpErr}}<div role="alert" class="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{.Data.FollowUpErr}}</div>{{end}}
+  {{if not .Data.Lead.Status.Open}}
+  <p class="mt-2 text-sm text-slate-600">Prospek sudah ditutup ({{.Data.Lead.Status.Label}}); follow-up yang terbuka sudah ditandai selesai. Buka kembali prospek (pilih status aktif) untuk menjadwalkan follow-up baru.</p>
+  {{else}}
+  {{with .Data.FollowUp}}
+  <p class="mt-2 text-sm text-slate-700">
+    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{bucketClass .Bucket}}">{{bucketLabel .Bucket}}</span>
+    <span class="font-medium">{{.Due}}</span>{{if .F.Note}} · {{.F.Note}}{{end}}
+  </p>
+  <div class="mt-3 flex flex-wrap gap-2">
+    <form hx-post="/app/follow-up/{{.F.ID}}/selesai" hx-target="#followup-panel" hx-swap="outerHTML" method="post" action="/app/follow-up/{{.F.ID}}/selesai">
+      <input type="hidden" name="tampilan" value="prospek">
+      <button type="submit" class="{{template "btn_primary"}} text-sm"><span class="htmx-indicator-hidden">Selesai</span></button>
+    </form>
+  </div>
+  <details class="mt-3 text-sm">
+    <summary class="cursor-pointer font-medium text-teal-700">Jadwalkan ulang</summary>
+    <div class="mt-2">{{template "followup_form" $}}</div>
+  </details>
+  {{else}}
+  <h3 class="mt-2 text-sm font-medium text-slate-700">Jadwalkan follow-up</h3>
+  <div class="mt-2">{{template "followup_form" .}}</div>
+  {{end}}
+  {{end}}
+</section>
+{{end}}
+
+{{define "prospek_wa"}}
+<section id="wa-panel" class="mt-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Hubungi lewat WhatsApp</h2>
+  {{if .Data.WaErr}}<div role="alert" class="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{.Data.WaErr}}</div>{{end}}
+  {{if .Data.Lead.CustomerPhone}}
+  <form method="post" action="/app/prospek/{{.Data.Lead.ID}}/wa" target="_blank" hx-boost="false" class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
+    <div class="flex-1">
+      <label for="template" class="block text-sm font-medium text-slate-700">Pesan</label>
+      <select id="template" name="template" class="{{template "input_class"}}">
+        {{range .Data.Templates}}<option value="{{.Key}}">{{.Name}}</option>{{end}}
+      </select>
+    </div>
+    <button type="submit" class="{{template "btn_primary"}} text-sm">Buka WhatsApp</button>
+  </form>
+  <p class="mt-2 text-xs text-slate-500">Membuka WhatsApp ke {{telepon .Data.Lead.CustomerPhone}} dengan pesan yang sudah diisi; Anda yang mengirimnya. Teks bisa diubah di <a href="/app/pengaturan/templat" class="text-teal-700 hover:underline">Pengaturan › Templat pesan</a>.</p>
+  {{if .Data.WaMissing}}<p class="mt-1 text-xs text-amber-700">Placeholder {{range $i, $p := .Data.WaMissing}}{{if $i}}, {{end}}{{"{"}}{{$p}}{{"}"}}{{end}} akan kosong{{range .Data.WaMissing}}{{if eq . "nilai"}} karena belum ada estimasi nilai{{end}}{{end}}.</p>{{end}}
+  {{else}}
+  <p class="mt-2 text-sm text-slate-600">Pelanggan ini belum punya nomor WhatsApp. <a href="/app/pelanggan/{{.Data.Lead.CustomerID}}/ubah" class="font-medium text-teal-700 hover:underline">Tambahkan nomor</a> untuk membuka chat dari sini.</p>
+  {{end}}
+</section>
+{{end}}
+
+{{define "followup_form"}}
+<form hx-post="/app/prospek/{{.Data.Lead.ID}}/follow-up" hx-target="#followup-panel" hx-swap="outerHTML" method="post" action="/app/prospek/{{.Data.Lead.ID}}/follow-up" class="grid grid-cols-1 gap-3 sm:grid-cols-[12rem_1fr_auto] sm:items-end" novalidate>
+  <div>
+    <label for="due_on" class="block text-sm font-medium text-slate-700">Tanggal</label>
+    <input id="due_on" name="due_on" type="date" required value="{{.Form.due_on}}" class="{{template "input_class"}}">
+    {{template "field_error" .Errors.due_on}}
+  </div>
+  <div>
+    <label for="note" class="block text-sm font-medium text-slate-700">Catatan <span class="font-normal text-slate-400">(opsional)</span></label>
+    <textarea id="note" name="note" rows="1" maxlength="500" placeholder="Contoh: tanya hasil rapat keluarga" class="{{template "input_class"}}">{{.Form.note}}</textarea>
+    {{template "field_error" .Errors.note}}
+  </div>
+  <button type="submit" class="{{template "btn_secondary"}} text-sm"><span class="htmx-indicator-hidden">{{if .Data.FollowUp}}Simpan jadwal{{else}}Jadwalkan{{end}}</span></button>
+</form>
+{{end}}
+
+{{define "prospek_followup_oob"}}
+{{template "prospek_followup" .}}
+{{template "prospek_meta" .}}
+<div id="aktivitas" hx-swap-oob="true">{{template "prospek_aktivitas" .}}</div>
 {{end}}
 
 {{define "prospek_status_oob"}}

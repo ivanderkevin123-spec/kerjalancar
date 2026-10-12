@@ -97,3 +97,8 @@ func DisplayPhone(e164Number string) string {
 	}
 	return "0" + area + "-" + local[:len(local)-4] + "-" + local[len(local)-4:]
 }
+
+// WhatsAppDigits turns an E.164 number into the digits wa.me expects (no "+").
+func WhatsAppDigits(e164Number string) string {
+	return strings.TrimPrefix(e164Number, "+")
+}

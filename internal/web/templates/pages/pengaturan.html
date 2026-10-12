@@ -4,11 +4,34 @@
 <div class="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
   {{template "pengaturan_form" .}}
 </div>
+<div class="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+  {{template "pengaturan_zona" .}}
+</div>
+<div class="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 text-sm text-slate-600">
+  <h2 class="font-semibold text-slate-900">Templat pesan WhatsApp</h2>
+  <p class="mt-1">Ubah teks follow-up penawaran, pengingat DP, dan pengingat pelunasan di <a href="/app/pengaturan/templat" class="font-medium text-teal-700 hover:underline">Templat pesan</a>.</p>
+</div>
 <div class="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 text-sm text-slate-600">
   <h2 class="font-semibold text-slate-900">Akun</h2>
   <p class="mt-1">Masuk sebagai <span class="font-medium">{{.User.Email}}</span> (pemilik).</p>
   <p class="mt-1 text-slate-500">Lupa kata sandi? Hubungi tim KerjaLancar untuk mengatur ulang selama masa uji coba.</p>
 </div>
+{{end}}
+
+{{define "pengaturan_zona"}}
+<form id="zona-form" hx-post="/app/pengaturan/zona-waktu" hx-target="this" hx-swap="outerHTML" method="post" action="/app/pengaturan/zona-waktu" class="space-y-4" novalidate>
+  <h2 class="text-sm font-semibold text-slate-900">Zona waktu</h2>
+  <p class="text-sm text-slate-500">Menentukan hari untuk daftar follow-up "Hari ini" dan "Terlambat".</p>
+  {{if .Data.ZoneMsg}}<div role="status" class="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">{{.Data.ZoneMsg}}</div>{{end}}
+  {{if .Data.ZoneErr}}<div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{.Data.ZoneErr}}</div>{{end}}
+  <div>
+    <label for="timezone" class="block text-sm font-medium text-slate-700">Zona</label>
+    <select id="timezone" name="timezone" class="{{template "input_class"}}">
+      {{range .Data.Zones}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+  </div>
+  <button type="submit" class="{{template "btn_primary"}}"><span class="htmx-indicator-hidden">Simpan zona</span></button>
+</form>
 {{end}}
 
 {{define "pengaturan_form"}}

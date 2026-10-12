@@ -21,8 +21,42 @@
   </ol>
 </section>
 {{else}}
+{{with .Data.FollowUps.Counts}}
+<div class="mt-6 grid grid-cols-3 gap-3">
+  <a href="/app/follow-up?tab=terlambat" class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
+    <p class="text-xs text-slate-500">Terlambat</p>
+    <p class="mt-1 text-2xl font-semibold {{if gt .Overdue 0}}text-rose-600{{else}}text-slate-900{{end}}">{{.Overdue}}</p>
+  </a>
+  <a href="/app/follow-up?tab=hari-ini" class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
+    <p class="text-xs text-slate-500">Hari ini</p>
+    <p class="mt-1 text-2xl font-semibold text-slate-900">{{.Today}}</p>
+  </a>
+  <a href="/app/follow-up?tab=mendatang" class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
+    <p class="text-xs text-slate-500">Mendatang</p>
+    <p class="mt-1 text-2xl font-semibold text-slate-900">{{.Upcoming}}</p>
+  </a>
+</div>
+{{end}}
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <div class="flex items-center justify-between">
+    <h2 class="text-sm font-semibold text-slate-900">Perlu dihubungi</h2>
+    <a href="/app/follow-up" class="text-sm font-medium text-teal-700 hover:underline">Lihat semua</a>
+  </div>
+  {{if .Data.Agenda}}
+  <ul class="mt-2 divide-y divide-slate-100 text-sm">
+    {{range .Data.Agenda}}
+    <li class="flex items-center justify-between gap-3 py-2">
+      <a href="/app/prospek/{{.F.LeadID}}" class="min-w-0 hover:underline"><span class="block truncate font-medium text-slate-900">{{.F.CustomerName}}</span><span class="block truncate text-slate-500">{{.F.LeadTitle}}</span></a>
+      <span class="shrink-0 text-right"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{bucketClass .Bucket}}">{{bucketLabel .Bucket}}</span><span class="block text-xs text-slate-500">{{.Due}}</span></span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="mt-2 text-sm text-slate-500">Tidak ada follow-up hari ini.</p>
+  {{end}}
+</section>
 {{with .Data.Summary}}
-<div class="mt-6 grid grid-cols-2 gap-3">
+<div class="mt-4 grid grid-cols-2 gap-3">
   <a href="/app/prospek" class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
     <p class="text-sm text-slate-500">Prospek aktif</p>
     <p class="mt-1 text-2xl font-semibold text-slate-900">{{.OpenCount}}</p>

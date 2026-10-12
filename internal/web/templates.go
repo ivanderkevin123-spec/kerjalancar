@@ -10,6 +10,7 @@ import (
 
 	"kerjalancar/internal/auth"
 	"kerjalancar/internal/customer"
+	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
 	"kerjalancar/internal/money"
 	"kerjalancar/internal/workspace"
@@ -36,6 +37,8 @@ var pageLayouts = map[string]string{
 	"prospek_daftar":   "app",
 	"prospek_form":     "app",
 	"prospek_detail":   "app",
+	"followup_daftar":  "app",
+	"templat":          "app",
 }
 
 var monthsID = [...]string{"", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"}
@@ -70,17 +73,9 @@ var templateFuncs = template.FuncMap{
 		}
 		return formatDateID(t) + t.Format(", 15.04")
 	},
-	// lewat reports whether a follow-up date is before today in the workspace zone.
-	"lewat": func(d *time.Time, loc *time.Location) bool {
-		if d == nil {
-			return false
-		}
-		if loc == nil {
-			loc = time.UTC
-		}
-		now := time.Now().In(loc)
-		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-		return d.Before(today)
+	// lewat reports whether a follow-up date is before the workspace's today (View.Today).
+	"lewat": func(d *time.Time, today time.Time) bool {
+		return d != nil && d.Before(today)
 	},
 	"badgeClass": func(st lead.Status) string {
 		switch st {
@@ -94,6 +89,26 @@ var templateFuncs = template.FuncMap{
 			return "bg-emerald-50 text-emerald-700 ring-emerald-200"
 		case lead.StatusKalah:
 			return "bg-rose-50 text-rose-700 ring-rose-200"
+		}
+		return "bg-slate-100 text-slate-700 ring-slate-200"
+	},
+	"bucketLabel": func(b followup.Bucket) string {
+		switch b {
+		case followup.BucketOverdue:
+			return "terlambat"
+		case followup.BucketToday:
+			return "hari ini"
+		case followup.BucketUpcoming:
+			return "mendatang"
+		}
+		return "nanti"
+	},
+	"bucketClass": func(b followup.Bucket) string {
+		switch b {
+		case followup.BucketOverdue:
+			return "bg-rose-50 text-rose-700 ring-rose-200"
+		case followup.BucketToday:
+			return "bg-teal-50 text-teal-700 ring-teal-200"
 		}
 		return "bg-slate-100 text-slate-700 ring-slate-200"
 	},
@@ -139,8 +154,10 @@ type View struct {
 	Heading          string
 	Message          string
 	Year             int
-	// Loc is the workspace time zone for rendering timestamps.
-	Loc *time.Location
+	// Loc is the workspace time zone for rendering timestamps; Today is the
+	// workspace's calendar day (UTC midnight) from the injectable clock.
+	Loc   *time.Location
+	Today time.Time
 	// Data holds the page-specific view model (one struct type per page).
 	Data any
 }

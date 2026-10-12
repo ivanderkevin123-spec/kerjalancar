@@ -19,7 +19,9 @@ import (
 	"kerjalancar/internal/auth"
 	"kerjalancar/internal/customer"
 	"kerjalancar/internal/db/testdb"
+	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
+	"kerjalancar/internal/template"
 	"kerjalancar/internal/web"
 	"kerjalancar/internal/workspace"
 )
@@ -38,6 +40,9 @@ func newApp(t *testing.T, mutate ...func(d *web.Deps)) *testApp {
 	pool := testdb.Pool(t)
 	tmpl, err := web.LoadTemplates()
 	require.NoError(t, err)
+	leads := lead.NewStore(pool)
+	leads.ScheduleHook = followup.ScheduleForLead
+	leads.CloseHook = followup.CloseForLead
 	d := web.Deps{
 		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
 		DB:               pool,
@@ -45,7 +50,9 @@ func newApp(t *testing.T, mutate ...func(d *web.Deps)) *testApp {
 		Auth:             auth.NewService(pool, lightArgon),
 		Workspaces:       workspace.NewStore(pool),
 		Customers:        customer.NewStore(pool),
-		Leads:            lead.NewStore(pool),
+		Leads:            leads,
+		FollowUps:        followup.NewStore(pool),
+		MessageTemplates: template.NewStore(pool),
 		Templates:        tmpl,
 		RegistrationOpen: true,
 		BaseURL:          "http://example.com",

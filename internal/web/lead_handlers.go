@@ -10,8 +10,10 @@ import (
 	"github.com/google/uuid"
 
 	"kerjalancar/internal/customer"
+	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
 	"kerjalancar/internal/money"
+	"kerjalancar/internal/template"
 )
 
 const (
@@ -67,6 +69,15 @@ type leadDetailData struct {
 	NoteMsg    string
 	NoteErr    string
 	Oob        bool // rendering an htmx response: mark out-of-band blocks
+	// Follow-up panel: the open follow-up (nil when none) and its rendering.
+	FollowUp    *fuRow
+	FollowUpMsg string
+	FollowUpErr string
+	DefaultDue  string
+	// WhatsApp block: the workspace's templates and which placeholders would be empty for this lead.
+	Templates []template.Template
+	WaMissing []string
+	WaErr     string
 }
 
 func (s *server) getProspekList(w http.ResponseWriter, r *http.Request) {
@@ -183,6 +194,12 @@ func (s *server) postProspek(w http.ResponseWriter, r *http.Request) {
 
 	in := lead.CreateInput{Input: leadInput(form)}
 	_, v.Errors = lead.Validate(in.Input)
+	if form["next_follow_up_on"] != "" {
+		// The first follow-up obeys the same bounds as the scheduling form.
+		if _, ferrs := followup.Validate(followup.Input{DueOn: form["next_follow_up_on"]}, s.today(ws)); ferrs["due_on"] != "" {
+			v.Errors["next_follow_up_on"] = ferrs["due_on"]
+		}
+	}
 	if data.Mode == "ada" {
 		id, err := uuid.Parse(form["customer_id"])
 		if err != nil {
@@ -256,17 +273,38 @@ func (s *server) loadLead(w http.ResponseWriter, r *http.Request) (lead.Lead, bo
 	return l, true
 }
 
-// detailView builds the lead page model with its activity timeline.
+// detailView builds the lead page model with its activity timeline and follow-up panel.
 func (s *server) detailView(r *http.Request, l lead.Lead, data leadDetailData) (*View, error) {
 	ws := currentWorkspace(r.Context())
 	acts, err := s.Leads.Activities(r.Context(), ws.ID, l.ID, lead.MaxActivities)
 	if err != nil {
 		return nil, err
 	}
+	today, loc := s.today(ws), location(ws.Timezone)
+	open, ok, err := s.FollowUps.OpenForLead(r.Context(), ws.ID, l.ID)
+	if err != nil {
+		return nil, err
+	}
 	data.Lead, data.Activities = l, acts
+	data.DefaultDue = followup.DefaultDue(today).Format(followup.DateLayout)
+	if data.Templates, err = s.MessageTemplates.ForWorkspace(r.Context(), ws.ID); err != nil {
+		return nil, err
+	}
+	waData := s.waData(r, l)
+	for _, tpl := range data.Templates {
+		for _, p := range template.MissingPlaceholders(tpl.Body, waData) {
+			data.WaMissing = appendUnique(data.WaMissing, p)
+		}
+	}
 	v := s.appView(r, l.Title, "prospek")
 	v.Form["status"] = string(l.Status)
 	v.Form["lost_reason"] = l.LostReason
+	v.Form["due_on"], v.Form["note"] = data.DefaultDue, ""
+	if ok {
+		row := s.rowView(open, today, loc)
+		data.FollowUp = &row
+		v.Form["due_on"], v.Form["note"] = open.DueOn.Format(followup.DateLayout), open.Note
+	}
 	v.Data = data
 	return v, nil
 }
@@ -300,7 +338,7 @@ func (s *server) postProspekStatus(w http.ResponseWriter, r *http.Request) {
 	hx := r.Header.Get("HX-Request") == "true"
 
 	data := leadDetailData{}
-	updated, err := s.Leads.ChangeStatus(r.Context(), ws.ID, user.ID, l.ID, lead.Status(st), reason, location(ws.Timezone))
+	updated, err := s.Leads.ChangeStatus(r.Context(), ws.ID, user.ID, l.ID, lead.Status(st), reason, s.today(ws))
 	var verr *lead.ValidationError
 	switch {
 	case err == nil:
@@ -418,6 +456,7 @@ func (s *server) postProspekUbah(w http.ResponseWriter, r *http.Request) {
 	}
 	ws, user := currentWorkspace(r.Context()), currentUser(r.Context())
 	form := formValues(r, leadFields...)
+	form["next_follow_up_on"] = "" // not on the edit form; follow-ups are scheduled from the detail page
 	updated, err := s.Leads.Update(r.Context(), ws.ID, user.ID, l.ID, leadInput(form))
 	var verr *lead.ValidationError
 	switch {
@@ -437,6 +476,15 @@ func (s *server) postProspekUbah(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func appendUnique(list []string, v string) []string {
+	for _, x := range list {
+		if x == v {
+			return list
+		}
+	}
+	return append(list, v)
+}
+
 func leadInput(f map[string]string) lead.Input {
 	return lead.Input{Title: f["title"], ProjectType: f["project_type"], Description: f["description"],
 		EstimatedValue: f["estimated_value"], Source: f["source"], NextFollowUpOn: f["next_follow_up_on"], Notes: f["notes"]}
@@ -448,9 +496,6 @@ func leadForm(l lead.Lead) map[string]string {
 		"source": string(l.Source), "notes": l.Notes}
 	if l.EstimatedValue != nil {
 		f["estimated_value"] = strings.TrimPrefix(money.FormatIDR(*l.EstimatedValue), "Rp")
-	}
-	if l.NextFollowUpOn != nil {
-		f["next_follow_up_on"] = l.NextFollowUpOn.Format(lead.DateLayout)
 	}
 	return f
 }

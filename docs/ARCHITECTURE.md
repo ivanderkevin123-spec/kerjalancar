@@ -80,7 +80,8 @@ Single repository, single deployable service. A monorepo toolchain (Turborepo, w
               Managed PostgreSQL · workspace_id on every tenant row
               composite foreign keys · daily backups · tested restore
 
-   Outbound (v1): wa.me click-to-chat links only (no WhatsApp API)
+   Outbound (v1): wa.me click-to-chat links only (no WhatsApp API); the tap is
+   recorded as "dibuka" in the lead history, never as "terkirim" (D-047)
    Later, with approval: error monitoring, transactional email, /api/v1
 ```
 
@@ -110,8 +111,8 @@ internal/
   lead/                leads, statuses and transition rules, append-only activities, store (M3)
   quotation/           quotations, items, totals, share tokens, status
   invoice/             invoices, items, payments (DP / cicilan / pelunasan), balances
-  followup/            tasks, due lists, completion
-  template/            WhatsApp message templates, placeholder rendering, wa.me links
+  followup/            follow-ups: due buckets in the workspace zone, schedule/done/undo, cache of leads.next_follow_up_on (M4)
+  template/            WhatsApp message templates (three fixed slots per workspace), placeholder rendering, wa.me links (M4)
   dashboard/           read models for pipeline, receivables, today's list
   audit/               append-only activity events
   money/               integer rupiah: ParseIDR / FormatIDR "Rp1.250.000" (M3); quantity scale and rounding (M5)
@@ -134,7 +135,7 @@ Each package exposes a small service API and owns its SQL. Packages do not impor
 
 ### 5.1 Activity history vs technical audit (D-036)
 
-Two separate records. `lead_activities` is the business history the owner reads on a lead: created, status changes (from, to, reason), notes, and which fields were edited (short old/new values; never the text of description or notes). It is append-only (database trigger) and extended by M4 (follow-ups) and M5 (quotations). The technical audit is a structured log line per mutation (`action`, `user_id`, `workspace_id`, row ids, `request_id`) with no content, enough to investigate "who changed what, when" during pilots; a database-backed audit table is an M7 decision.
+Two separate records. `lead_activities` is the business history the owner reads on a lead: created, status changes (from, to, reason), notes, and which fields were edited (short old/new values; never the text of description or notes). It is append-only (database trigger); M4 added follow-up and WhatsApp kinds (D-049), M5 adds quotation kinds. The technical audit is a structured log line per mutation (`action`, `user_id`, `workspace_id`, row ids, `request_id`) with no content, enough to investigate "who changed what, when" during pilots; a database-backed audit table is an M7 decision.
 
 ## 6. Money and quantities
 
@@ -147,8 +148,9 @@ Two separate records. `lead_activities` is the business history the owner reads 
 
 ## 7. Time
 
-- Timestamps are `timestamptz` (UTC). Due dates are `DATE` in the workspace time zone (default `Asia/Jakarta`; `Asia/Makassar`, `Asia/Jayapura` selectable).
-- "Hari ini" and "terlambat" are computed in the workspace zone and tested at midnight boundaries.
+- Timestamps are `timestamptz` (UTC). Due dates are `DATE` in the workspace time zone (default `Asia/Jakarta`; `Asia/Makassar`, `Asia/Jayapura` selectable; whitelisted in Go and by a CHECK, D-044).
+- "Hari ini" and "terlambat" are computed in the workspace zone from an injectable clock (`web.Deps.Clock`) and tested at midnight boundaries (`followup.Today`, `followup.BucketOf`); `*time.Location` values are cached per zone name.
+- Follow-ups: `follow_ups` is the source of truth with one open row per lead; `leads.next_follow_up_on` is a cache written in the same transaction (D-043). The lead store calls the follow-up package through two hooks set at wiring time (D-045), which keeps the package graph acyclic (`followup` → `lead`).
 
 ## 8. Security baseline (expanded in `THREAT_MODEL.md` in Phase B)
 

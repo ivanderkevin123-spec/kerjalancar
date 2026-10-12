@@ -25,8 +25,16 @@ const MaxActivities = 100
 const MaxQueryLen = 100
 
 // Store reads and writes leads and their activities for one workspace at a time.
+//
+// Follow-ups live in their own package (which imports this one), so the two
+// places where a status change must touch them are hooks set at wiring time:
+// ScheduleHook creates the open follow-up when a lead reaches penawaran with
+// none, CloseHook finishes it when the lead closes (D-045). Both run inside
+// the status-change transaction.
 type Store struct {
-	pool *pgxpool.Pool
+	pool         *pgxpool.Pool
+	ScheduleHook func(ctx context.Context, tx pgx.Tx, workspaceID, actorID, leadID uuid.UUID, dueOn time.Time) error
+	CloseHook    func(ctx context.Context, tx pgx.Tx, workspaceID, actorID, leadID uuid.UUID) error
 }
 
 func NewStore(pool *pgxpool.Pool) *Store { return &Store{pool: pool} }
@@ -115,15 +123,20 @@ func (s *Store) Create(ctx context.Context, workspaceID, actorID uuid.UUID, in C
 		return Lead{}, fmt.Errorf("lead: id: %w", err)
 	}
 	_, err = tx.Exec(ctx, `
-		INSERT INTO leads (id, workspace_id, customer_id, title, project_type, description, estimated_value, status, source, next_follow_up_on, notes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		INSERT INTO leads (id, workspace_id, customer_id, title, project_type, description, estimated_value, status, source, notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		id, workspaceID, customerID, n.Title, nullable(string(n.ProjectType)), nullable(n.Description), n.EstimatedValue,
-		StatusBaru, nullable(string(n.Source)), n.NextFollowUpOn, nullable(n.Notes))
+		StatusBaru, nullable(string(n.Source)), nullable(n.Notes))
 	if err != nil {
 		return Lead{}, fmt.Errorf("lead: insert: %w", err)
 	}
-	if err := appendActivity(ctx, tx, workspaceID, id, actorID, KindCreated, "", ActivityData{}); err != nil {
+	if err := AppendActivity(ctx, tx, workspaceID, id, actorID, KindCreated, "", ActivityData{}); err != nil {
 		return Lead{}, err
+	}
+	if n.NextFollowUpOn != nil && s.ScheduleHook != nil {
+		if err := s.ScheduleHook(ctx, tx, workspaceID, actorID, id, *n.NextFollowUpOn); err != nil {
+			return Lead{}, err
+		}
 	}
 	l, err := getLead(ctx, tx, workspaceID, id, false)
 	if err != nil {
@@ -158,14 +171,14 @@ func (s *Store) Update(ctx context.Context, workspaceID, actorID, id uuid.UUID, 
 	}
 	_, err = tx.Exec(ctx, `
 		UPDATE leads SET title = $3, project_type = $4, description = $5, estimated_value = $6, source = $7,
-		       next_follow_up_on = $8, notes = $9, updated_at = now()
+		       notes = $8, updated_at = now()
 		WHERE workspace_id = $1 AND id = $2`,
 		workspaceID, id, n.Title, nullable(string(n.ProjectType)), nullable(n.Description), n.EstimatedValue,
-		nullable(string(n.Source)), n.NextFollowUpOn, nullable(n.Notes))
+		nullable(string(n.Source)), nullable(n.Notes))
 	if err != nil {
 		return Lead{}, fmt.Errorf("lead: update: %w", err)
 	}
-	if err := appendActivity(ctx, tx, workspaceID, id, actorID, KindUpdated, "", ActivityData{Changes: changes}); err != nil {
+	if err := AppendActivity(ctx, tx, workspaceID, id, actorID, KindUpdated, "", ActivityData{Changes: changes}); err != nil {
 		return Lead{}, err
 	}
 	l, err := getLead(ctx, tx, workspaceID, id, false)
@@ -197,9 +210,6 @@ func diff(cur Lead, n Normalized) []Change {
 	if cur.Source != n.Source {
 		out = append(out, Change{Field: "source", From: cur.Source.Label(), To: n.Source.Label()})
 	}
-	if !equalDate(cur.NextFollowUpOn, n.NextFollowUpOn) {
-		out = append(out, Change{Field: "next_follow_up_on", From: formatDate(cur.NextFollowUpOn), To: formatDate(n.NextFollowUpOn)})
-	}
 	if cur.Notes != n.Notes {
 		out = append(out, Change{Field: "notes"})
 	}
@@ -207,9 +217,10 @@ func diff(cur Lead, n Normalized) []Change {
 }
 
 // ChangeStatus applies the transition rules (D-035), updates the status and
-// the derived fields, and appends a status_changed activity. loc is the
-// workspace time zone used to compute "today" for the follow-up default.
-func (s *Store) ChangeStatus(ctx context.Context, workspaceID, actorID, id uuid.UUID, to Status, lostReason string, loc *time.Location) (Lead, error) {
+// the derived fields, and appends a status_changed activity. today is the
+// workspace's calendar day (from the injectable clock), used for the
+// follow-up default when a lead reaches penawaran.
+func (s *Store) ChangeStatus(ctx context.Context, workspaceID, actorID, id uuid.UUID, to Status, lostReason string, today time.Time) (Lead, error) {
 	lostReason = strings.TrimSpace(lostReason)
 	if msg := ValidateLostReason(lostReason); msg != "" {
 		return Lead{}, &ValidationError{Fields: map[string]string{"lost_reason": msg}}
@@ -228,31 +239,35 @@ func (s *Store) ChangeStatus(ctx context.Context, workspaceID, actorID, id uuid.
 		return Lead{}, err
 	}
 
-	followUp := cur.NextFollowUpOn
-	switch {
-	case !to.Open():
-		followUp = nil
-	case to == StatusPenawaran && followUp == nil:
-		if loc == nil {
-			loc = time.UTC
-		}
-		now := time.Now().In(loc)
-		d := time.Date(now.Year(), now.Month(), now.Day()+3, 0, 0, 0, 0, time.UTC)
-		followUp = &d
-	}
 	reason := ""
 	if to == StatusKalah {
 		reason = lostReason
 	}
 	_, err = tx.Exec(ctx, `
-		UPDATE leads SET status = $3, lost_reason = $4, next_follow_up_on = $5, status_changed_at = now(), updated_at = now()
+		UPDATE leads SET status = $3, lost_reason = $4, status_changed_at = now(), updated_at = now()
 		WHERE workspace_id = $1 AND id = $2`,
-		workspaceID, id, to, nullable(reason), followUp)
+		workspaceID, id, to, nullable(reason))
 	if err != nil {
 		return Lead{}, fmt.Errorf("lead: change status: %w", err)
 	}
-	if err := appendActivity(ctx, tx, workspaceID, id, actorID, KindStatusChanged, "", ActivityData{From: cur.Status, To: to, Reason: reason}); err != nil {
+	if err := AppendActivity(ctx, tx, workspaceID, id, actorID, KindStatusChanged, "", ActivityData{From: cur.Status, To: to, Reason: reason}); err != nil {
 		return Lead{}, err
+	}
+	switch {
+	case !to.Open():
+		// Closing a lead finishes its open follow-up (D-045); the cached date is cleared either way.
+		if s.CloseHook != nil {
+			if err := s.CloseHook(ctx, tx, workspaceID, actorID, id); err != nil {
+				return Lead{}, err
+			}
+		}
+		if _, err := tx.Exec(ctx, `UPDATE leads SET next_follow_up_on = NULL WHERE workspace_id = $1 AND id = $2`, workspaceID, id); err != nil {
+			return Lead{}, fmt.Errorf("lead: clear follow-up: %w", err)
+		}
+	case to == StatusPenawaran && cur.NextFollowUpOn == nil && s.ScheduleHook != nil:
+		if err := s.ScheduleHook(ctx, tx, workspaceID, actorID, id, today.AddDate(0, 0, 3)); err != nil {
+			return Lead{}, err
+		}
 	}
 	l, err := getLead(ctx, tx, workspaceID, id, false)
 	if err != nil {
@@ -281,7 +296,7 @@ func (s *Store) AddNote(ctx context.Context, workspaceID, actorID, id uuid.UUID,
 	if _, err := getLead(ctx, tx, workspaceID, id, true); err != nil {
 		return Activity{}, err
 	}
-	if err := appendActivity(ctx, tx, workspaceID, id, actorID, KindNote, body, ActivityData{}); err != nil {
+	if err := AppendActivity(ctx, tx, workspaceID, id, actorID, KindNote, body, ActivityData{}); err != nil {
 		return Activity{}, err
 	}
 	acts, err := listActivities(ctx, tx, workspaceID, id, 1)
@@ -333,7 +348,9 @@ func listActivities(ctx context.Context, q interface {
 	return out, rows.Err()
 }
 
-func appendActivity(ctx context.Context, tx pgx.Tx, workspaceID, leadID, actorID uuid.UUID, kind Kind, body string, data ActivityData) error {
+// AppendActivity writes one history line inside the caller's transaction. It
+// is exported for the follow-up package, which records its own kinds (D-049).
+func AppendActivity(ctx context.Context, tx pgx.Tx, workspaceID, leadID, actorID uuid.UUID, kind Kind, body string, data ActivityData) error {
 	id, err := uuid.NewV7()
 	if err != nil {
 		return fmt.Errorf("lead: activity id: %w", err)
@@ -511,13 +528,6 @@ func equalInt64(a, b *int64) bool {
 	return *a == *b
 }
 
-func equalDate(a, b *time.Time) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return a.Year() == b.Year() && a.YearDay() == b.YearDay()
-}
-
 func formatValue(v *int64) string {
 	if v == nil {
 		return ""
@@ -525,9 +535,22 @@ func formatValue(v *int64) string {
 	return money.FormatIDR(*v)
 }
 
-func formatDate(d *time.Time) string {
-	if d == nil {
-		return ""
+// RecordWhatsApp appends a whatsapp_opened activity (the label of the template
+// used) for a lead of the workspace. The message itself is never stored.
+func (s *Store) RecordWhatsApp(ctx context.Context, workspaceID, actorID, id uuid.UUID, templateLabel string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("lead: begin: %w", err)
 	}
-	return d.Format("02-01-2006")
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := getLead(ctx, tx, workspaceID, id, true); err != nil {
+		return err
+	}
+	if err := AppendActivity(ctx, tx, workspaceID, id, actorID, KindWhatsAppOpened, "", ActivityData{Template: templateLabel}); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("lead: commit: %w", err)
+	}
+	return nil
 }

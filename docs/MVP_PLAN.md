@@ -87,6 +87,8 @@ Tests: due-list queries at boundaries; template rendering and URL encoding (incl
 
 Deferred: push/email reminders (A-15), recurring follow-ups.
 
+**Status 2026-10-12: M4 implemented on branch `m4-followups-whatsapp` (uncommitted, pending the founder's approval).** Delivered: `follow_ups` and `message_templates` (migration 00004 with backfill, seeds, time-zone CHECK, widened activity kinds); follow-up list with Terlambat / Hari ini / Mendatang / Selesai tabs computed in the workspace zone; scheduling and rescheduling from the lead detail; done and undo (idempotent) from the list and the lead panel via htmx; auto-schedule on `penawaran`, auto-close on `menang`/`kalah`; dashboard counts and "Perlu dihubungi" agenda; three editable WhatsApp templates with preview; `wa.me` click-to-chat that records the tap in the lead history; time-zone setting. Deviations by decision: the lead edit form no longer carries the follow-up date (D-043); the "Mendatang" tab also lists follow-ups beyond seven days under a separate heading; the three seed templates are the only slots (D-046). Verified: 165 tests green with `-race` (M1–M3 regression included, after the independent review's fixes and a deterministic lock-order test), golangci-lint 0 issues, govulncheck (GO-2026-5932 still module-level, not imported), migration backfill test on a fresh database, live check in a browser.
+
 ### M5 — Quotations with items, totals, share link, PDF (target: 5–6 days)
 
 Outcome: the owner builds a quotation with line items, sends it as a link or PDF through WhatsApp, and sees when it was opened and whether it was accepted.
