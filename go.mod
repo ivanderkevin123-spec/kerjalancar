@@ -7,6 +7,7 @@ require (
 	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-chi/httprate v0.16.1
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/pressly/goose/v3 v3.29.0

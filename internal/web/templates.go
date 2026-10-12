@@ -13,6 +13,7 @@ import (
 	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
 	"kerjalancar/internal/money"
+	"kerjalancar/internal/quotation"
 	"kerjalancar/internal/workspace"
 )
 
@@ -39,6 +40,10 @@ var pageLayouts = map[string]string{
 	"prospek_detail":   "app",
 	"followup_daftar":  "app",
 	"templat":          "app",
+	"penawaran_daftar": "app",
+	"penawaran_form":   "app",
+	"penawaran_detail": "app",
+	"share_penawaran":  "share",
 }
 
 var monthsID = [...]string{"", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"}
@@ -65,6 +70,13 @@ var templateFuncs = template.FuncMap{
 			return ""
 		}
 		return formatDateID(*t)
+	},
+	// waktuTanggal renders only the date of a timestamp in the zone: "12 Okt 2026".
+	"waktuTanggal": func(t time.Time, loc *time.Location) string {
+		if loc != nil {
+			t = t.In(loc)
+		}
+		return formatDateID(t)
 	},
 	// waktu renders a timestamp in the workspace zone: "12 Okt 2026, 14.05".
 	"waktu": func(t time.Time, loc *time.Location) string {
@@ -109,6 +121,20 @@ var templateFuncs = template.FuncMap{
 			return "bg-rose-50 text-rose-700 ring-rose-200"
 		case followup.BucketToday:
 			return "bg-teal-50 text-teal-700 ring-teal-200"
+		}
+		return "bg-slate-100 text-slate-700 ring-slate-200"
+	},
+	"qty": money.FormatQty,
+	"qBadgeClass": func(st quotation.Status) string {
+		switch st {
+		case quotation.StatusSent:
+			return "bg-sky-50 text-sky-700 ring-sky-200"
+		case quotation.StatusAccepted:
+			return "bg-emerald-50 text-emerald-700 ring-emerald-200"
+		case quotation.StatusRejected:
+			return "bg-rose-50 text-rose-700 ring-rose-200"
+		case quotation.StatusExpired:
+			return "bg-amber-50 text-amber-700 ring-amber-200"
 		}
 		return "bg-slate-100 text-slate-700 ring-slate-200"
 	},

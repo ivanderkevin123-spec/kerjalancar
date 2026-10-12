@@ -78,6 +78,8 @@ type leadDetailData struct {
 	Templates []template.Template
 	WaMissing []string
 	WaErr     string
+	// Quotations of this lead, newest first, with effective statuses.
+	Quotations []qView
 }
 
 func (s *server) getProspekList(w http.ResponseWriter, r *http.Request) {
@@ -290,7 +292,17 @@ func (s *server) detailView(r *http.Request, l lead.Lead, data leadDetailData) (
 	if data.Templates, err = s.MessageTemplates.ForWorkspace(r.Context(), ws.ID); err != nil {
 		return nil, err
 	}
-	waData := s.waData(r, l)
+	qs, err := s.Quotations.ForLead(r.Context(), ws.ID, l.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, q := range qs {
+		data.Quotations = append(data.Quotations, s.qview(q, today))
+	}
+	waData, err := s.waData(r, l)
+	if err != nil {
+		return nil, err
+	}
 	for _, tpl := range data.Templates {
 		for _, p := range template.MissingPlaceholders(tpl.Body, waData) {
 			data.WaMissing = appendUnique(data.WaMissing, p)

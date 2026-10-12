@@ -67,6 +67,6 @@ func (s *server) tooManyRequests(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	s.Logger.ErrorContext(r.Context(), "request failed",
-		slog.String("request_id", middleware.GetReqID(r.Context())), slog.String("path", r.URL.Path), slog.Any("err", err))
+		slog.String("request_id", middleware.GetReqID(r.Context())), slog.String("path", logPath(r.URL.Path)), slog.Any("err", err))
 	s.errorPage(w, r, http.StatusInternalServerError, "Terjadi kesalahan", "Coba lagi beberapa saat. Jika berulang, hubungi tim KerjaLancar.")
 }

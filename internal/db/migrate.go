@@ -35,7 +35,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) ([]int64, error) {
 	return versions, nil
 }
 
-// MigrateTo applies migrations up to and including version (tests use it to
+// MigrateTo applies or rolls back migrations up to and including version (tests use it to
 // stage data before a later migration's backfill runs).
 func MigrateTo(ctx context.Context, pool *pgxpool.Pool, version int64) error {
 	provider, closeFn, err := newProvider(pool)
@@ -43,6 +43,16 @@ func MigrateTo(ctx context.Context, pool *pgxpool.Pool, version int64) error {
 		return err
 	}
 	defer closeFn()
+	current, err := provider.GetDBVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("migrate: current version: %w", err)
+	}
+	if version < current {
+		if _, err := provider.DownTo(ctx, version); err != nil {
+			return fmt.Errorf("migrate down to %d: %w", version, err)
+		}
+		return nil
+	}
 	if _, err := provider.UpTo(ctx, version); err != nil {
 		return fmt.Errorf("migrate up to %d: %w", version, err)
 	}

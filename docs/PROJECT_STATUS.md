@@ -1,89 +1,98 @@
 # Project Status
 
-Updated: 2026-10-13 (Milestone 4 final gate)
+Updated: 2026-10-13 (Milestone 5 implemented, reviewed and fixed; awaiting the founder's commit approval)
 
 ## Current phase
 
-Build-first MVP (D-019). Milestones 1–3 are merged into `main` (M3: `d773e1c`; lint fixes `271b52d`; CI green on `297c64a`). **Milestone 4 (follow-ups, "Hari ini" list, WhatsApp click-to-chat) is implemented and tested on branch `m4-followups-whatsapp`; the whole change set is uncommitted and awaits the founder's approval to commit.** Next: Milestone 5 (quotations with items, totals, share link, PDF). Validation track continues in parallel; Gate G1 checkpoint remains Sunday 2026-10-18.
+Build-first MVP (D-019). Milestones 1–4 are merged into `main` (M4: `19a07ff`, CI run #3 green). **Milestone 5 (quotations with items, totals, share link, PDF) is implemented and tested on branch `m5-quotations`; the whole change set is uncommitted and awaits the founder's review.** Next: Milestone 6 (invoices, DP/installments, balances, dashboard). Validation track continues in parallel; Gate G1 checkpoint remains Sunday 2026-10-18.
 
 ## What works now (try it locally)
 
-- Dashboard (`/app`): Terlambat / Hari ini / Mendatang counts, a "Perlu dihubungi" agenda (overdue first, then today's), then the M3 pipeline summary.
-- Follow-up list (`/app/follow-up`): tabs Terlambat, Hari ini, Mendatang (plus "lebih dari seminggu"), Selesai (paginated); each row shows customer, lead, status, due date, note, and offers Selesai / Batalkan selesai (in place via htmx, counts updated), WhatsApp, and the lead page.
-- Lead detail: a follow-up panel to schedule or reschedule (date pre-filled today + 3, optional note) and to mark done; a WhatsApp panel with the three templates and a "Buka WhatsApp" button (opens `wa.me` in a new tab with the message filled in; the tap is recorded in the history as "Pesan WhatsApp dibuka"); a hint when a placeholder would be empty; a link to add a number when the customer has none.
-- Pipeline rules: entering Penawaran without an open follow-up schedules one for today + 3; closing a lead finishes its follow-up ("Follow-up selesai (prospek ditutup)"); reopening leaves history intact and allows a new follow-up.
-- Settings: workspace time zone (WIB / WITA / WIT) which decides what "today" is; three editable WhatsApp templates with a live preview and placeholder help.
-- Everything computes "today" in the workspace zone; a follow-up due on 20 Oct is "Hari ini" from 00:00 WIT in Jayapura while Jakarta still shows it as "Mendatang" (tested at the boundary).
+- From a lead's page, "Buat penawaran" opens an editor: rows of description, quantity (decimal comma allowed, e.g. `2,5`), unit, unit price; "Tambah baris" via htmx; discount % and tax %; valid-until (pre-filled two weeks ahead); notes. Totals are computed on the server from the saved rows and shown live as a preview while typing.
+- Quotation detail (`/app/penawaran/{id}`): items and totals, status badge (Draf, Terkirim, Diterima, Ditolak, Kedaluwarsa), "Kirim" creates the customer link, "Cabut tautan" / "Buat tautan baru", "Tandai diterima" (lead becomes Menang, its follow-up closes) / "Tandai ditolak", "Unduh PDF", WhatsApp button with the template select; "Dibuka N kali, pertama …" once the customer opened the link.
+- Customer view (`/p/{token}`): no login, print-friendly page with "Unduh PDF" and "Cetak"; unknown, revoked or expired links show a 404 page (expired ones say the offer is no longer valid).
+- List (`/app/penawaran`) with status chips and search by number or customer; lead page lists its quotations; the lead history shows "Penawaran #0001 dibuat/dikirim/diterima/ditolak" with the total.
+- WhatsApp templates: `{tautan}` is filled with the link of the lead's most recently sent quotation.
 
 ```bash
 cp .env.example .env            # once
 docker compose up -d db
 export PATH=$HOME/sdk/go1.27.2/bin:$PATH
-make migrate && make run        # http://localhost:8080 → /daftar, /app/prospek/baru, /app/follow-up
+make migrate && make run        # http://localhost:8080 → /app/prospek → a lead → "Buat penawaran"
 make test-db                    # full suite against Postgres (two packages at a time)
 make lint                       # golangci-lint v2.14.0 (go run on first use)
 ```
 
-## Change set on `m4-followups-whatsapp` (uncommitted, from `main` 297c64a)
+## Change set on `m5-quotations` (uncommitted, from `main` 19a07ff)
 
 | Area | Files |
 |---|---|
-| Schema | `internal/db/migrations/00004_followups_templates.sql` (follow_ups with composite FK and one-open-per-lead partial unique index, backfill from `leads.next_follow_up_on`, message_templates seeded per workspace, time-zone CHECK, widened activity kinds); `internal/db/migrate.go` (`MigrateTo`); `migrate_test.go` (≥ 4); `migrate_backfill_test.go` (fresh database: stage data at version 3, migrate, assert backfill, seeds and CHECK) |
-| Domain | `internal/followup` (Today, BucketOf, Validate, DefaultDue; store: Schedule/ScheduleTx/ScheduleForLead, CloseForLead, Done, Undo, Get, OpenForLead, Lists, DonePage; cache of `leads.next_follow_up_on` in the same transaction); `internal/template` (keys, seeds, Render, MissingPlaceholders, WaLink, Validate; store: ForWorkspace, Get, Update, SeedTx); `internal/customer/phone.go` (`WhatsAppDigits`); `internal/workspace/store.go` (Timezones, UpdateTimezone owner-only, seeds templates on creation); `internal/lead` (new activity kinds and lines, exported `AppendActivity`, `ScheduleHook`/`CloseHook`, `RecordWhatsApp`, Update no longer edits the follow-up date, Create schedules through the hook) |
-| Web | `followup_handlers.go` (list, schedule, done, undo), `whatsapp_handlers.go`, `settings_handlers.go` (time zone, templates); `Deps.Clock`, `Deps.FollowUps`, `Deps.MessageTemplates`; `location()` cache; `View.Today`; templates `followup_daftar.html`, `templat.html`, follow-up and WhatsApp panels in `prospek_detail.html`, dashboard blocks in `beranda.html`, zone form in `pengaturan.html`, nav entry; `prospek_form.html` shows the first follow-up date only on create; rebuilt `static/app.css`; wiring in `cmd/server/main.go` |
-| Tests | `followup_test.go` (zone boundaries, buckets, validation), `followup/store_test.go` (schedule/reschedule, done/undo idempotency, buckets per zone, cross-workspace, lead hooks), `template_test.go` + `template/store_test.go`, workspace time-zone test, `migrate_backfill_test.go`, web: `followup_web_test.go` (7), `whatsapp_web_test.go` (4), `settings_web_test.go` (4: zone re-bucketing, template edit/preview, CSRF for every M4 POST, mass-assignment and anonymous access), lead tests adapted to the hooks |
-| Docs | plan `docs/superpowers/plans/2026-10-12-m4-followups-whatsapp.md`; `DECISIONS` D-043..D-049; `ARCHITECTURE` §2, §4, §5.1, §7; `RISK_REGISTER` R-21..R-23; `MVP_PLAN` M4 status; `DEVELOPMENT`; this file |
+| Dependency | `github.com/go-pdf/fpdf` v0.9.0 (pure Go, MIT) in `go.mod`/`go.sum`; the v1.4.x tags are retracted upstream (D-055) |
+| Schema | `internal/db/migrations/00005_quotations.sql` (`lead_activity_kinds` lookup + FK replacing the CHECK, `quotation_sequences`, `quotations`, `quotation_items`, indexes); `migrate_test.go` (≥ 5); `migrate_m5_test.go` (fresh database staged at v4 with history rows → migrate: kinds seeded, old rows intact, unknown kind refused, numbering unique, qty > 0) |
+| Domain | `internal/money` (`LineTotal`, `PercentOf`, `ParseQty`, `FormatQty`); `internal/quotation` (`quotation.go`: statuses, validation, totals; `store.go`: create/update/send/accept/reject/share/public lookup/list; `pdf.go`); `internal/lead` (`ChangeStatusTx`, quotation activity kinds and lines) |
+| Web | `quotation_handlers.go`, `public_handlers.go`; routes under `/app/penawaran` and the public `/p/{token}` group (rate limit 60/min per client address, `no-store`); `Deps.Quotations`; lead detail quotation section; `waData` fills `{tautan}`; templates `penawaran_daftar/form/detail.html`, `layouts/share.html`, `share_penawaran.html`; nav entry; rebuilt `static/app.css`; wiring in `cmd/server/main.go` |
+| Tests | money tables; `quotation_test.go` (validation, hand-computed totals, effective status), `store_test.go` (transactions, 10 concurrent creators, update/stale/locked, send/token/open tracking/revoke/renew/expiry, accept wins lead + closes follow-up + history, lost lead refuses accept, reject, lists and search, cross-workspace); `pdf_test.go` (text content, size/page-count determinism, sample writer); web: `quotation_web_test.go` (10) and `public_web_test.go` (3) incl. CSRF, foreign ids, anonymous access, tampered totals/status/token ignored, no leakage on the public page, rate limit; lead `Describe` cases |
+| Docs | plan `docs/superpowers/plans/2026-10-13-m5-quotations.md`; `DECISIONS` D-050..D-055; `ARCHITECTURE` §3, §4, §6, §8; `RISK_REGISTER` R-24..R-28; `MVP_PLAN` M5 status; `DEVELOPMENT`; this file |
 
-## Tests executed (2026-10-12, Go 1.27.2 darwin/arm64, Postgres 17 in Docker)
+## Tests executed (2026-10-13, Go 1.27.2 darwin/arm64, Postgres 17 in Docker)
 
 | Command | Result |
 |---|---|
-| `REQUIRE_DB=1 go test -race -count=1 -p 1 ./...` | 11 packages ok; **165 tests passed, 0 failed, 0 skipped** (M1–M3 regression included; final gate run on the exact tree proposed for the commit) |
-| Review-focus scenarios (plan) | 1 number changed after scheduling → `TestWhatsAppButtonRendersTheTemplateWithTheCurrentNumber`; 2 done tapped twice → `TestDoneAndUndoAreIdempotentAndRecorded` (store) and `TestDoneAndUndoFromTheListAreIdempotentOverHtmx` (web); 3 lead reopened after auto-close → `TestLeadStatusChangesDriveFollowUps` and `TestClosingALeadClosesItsFollowUpInTheUI`; 4 empty `{nilai}` → `TestRenderFillsPlaceholdersAndBlanksMissingOnes` and `TestWhatsAppWithoutNumberOrEstimate`; 5 zone changed with follow-ups present → `TestTimezoneSettingRebucketsFollowUps` and `TestListBucketsFollowTheWorkspaceZone` |
-| Migration on a new database and an existing one | `TestMigration4BackfillsFollowUpsAndSeedsTemplates` (fresh database staged at version 3, then migrated: open lead backfilled, closed lead not, three templates seeded, foreign zone refused); `TestMigrateConcurrentOnFreshDatabase` (4 migrators); the existing dev and test databases migrated in place (`make migrate`: applied 4) |
+| `REQUIRE_DB=1 go test -race -count=1 -p 1 ./...` | 12 packages ok; **202 tests passed, 0 failed, 0 skipped** (M1–M4 regression included; rerun after the review fixes) |
+| Hand-computed money cases | 2.5 × Rp1.999 = Rp4.998; subtotal Rp504.998, 10 % discount Rp50.500, 11 % tax Rp49.995, total Rp504.493; 15.750.000 + 11 % = 17.482.500; 0.333 × 1.000 = 333; full discount → 0; stored subtotal equals the sum of stored lines (asserted after a round trip) |
+| Numbering under concurrency | `TestNumbersAreUniqueUnderConcurrentCreation`: 10 goroutines, 10 distinct numbers |
+| Migration from v4 with data, and back | `TestMigration5KeepsHistoryAndAddsQuotations` on a fresh database: up from v4 with history rows, then down to v4 with quotation history present (older lines survive, quotation lines are dropped), then up again; `TestMigrateConcurrentOnFreshDatabase`; the dev and test databases migrated in place (`applied 5`) |
+| Tenant isolation | `TestEverySQLOnTenantTablesIsScopedByWorkspace` (now also covers `quotations` and `quotation_items`), store and web cross-workspace tests, public page leakage checks (no e-mail, no lead notes, no app chrome) |
+| Lock order | lead → quotation (→ follow-up through the lead hooks); Accept runs `ChangeStatusTx` inside the quotation transaction |
 | `gofmt -l cmd internal`, `go vet ./...`, `git diff --check` | clean |
-| golangci-lint v2.14.0 (CI version, via `go run`) | 0 issues (after two fixes: a whitelisted redirect rewritten as fixed strings, a tagged switch) |
-| govulncheck (binary built from x/vuln v1.9.0, database fetched 2026-10-12) | 0 vulnerabilities in called symbols or imported packages; **GO-2026-5932** (`golang.org/x/crypto/openpgp` unmaintained) remains listed at module level: no fixed version exists, the package is not imported, re-checked each milestone |
-| Live check (Claude's browser, 375 px viewport, dev server after `make migrate`) | the M3 lead's cached date was backfilled into an open follow-up ("mendatang 15 Okt 2026"); dashboard counts; Selesai from the list via htmx (row swapped in place, counts updated to Selesai 1), Batalkan selesai (counts back, history shows "Follow-up selesai" then "Follow-up dibuka kembali"); lead detail with follow-up and WhatsApp panels; settings with the zone select; template page with previews; no console errors. The `wa.me` redirect was exercised by tests only (a real tap would leave the dev page for WhatsApp) |
-| Cache reconciliation (`leads.next_follow_up_on` vs the open `follow_ups` row) | Dev database: 0 mismatches. Test database: 0 mismatches among rows written by the application; the only mismatches were test fixtures that a capacity test had inserted with raw SQL without the cache (test fixed to maintain it); at most one open follow-up per lead everywhere |
-| Not run | Playwright (M7); `make test` with the default parallelism was not retried (M3 notes still apply) |
+| golangci-lint v2.14.0 (CI version, via `go run`) | 0 issues, rerun after the review fixes (earlier fixes: two `nolint` with reasons for a fixed-host redirect and a temp-dir file, `f.Stat()` instead of `os.Stat(path)`, an ineffectual assignment) |
+| govulncheck (x/vuln v1.9.0, database fetched 2026-10-13) | 0 vulnerabilities in called symbols or imported packages, `go-pdf/fpdf` scanned; **GO-2026-5932** (`x/crypto/openpgp`) remains listed at module level, no fixed version, not imported |
+| PDF sample | rendered to the scratchpad and viewed: header, recipient, items table with wrapped descriptions, totals block, notes, footer; after the fixes the public PDF of the live quotation was decompressed and checked: no phone digits, date in WIB, effective status |
+| Live check (Claude's browser against the dev server on port 8089, since 8080 was held by another local project) | from the lead page: new form with four rows (one added through htmx), decimal quantity `2,5`, 10 % discount, 11 % tax; live preview and saved detail both show Rp504.493; Kirim produced the link; the link and its PDF answered without any cookie with `Cache-Control: no-store`, no app chrome, no e-mail or lead notes in the page; detail then showed "Dibuka 1 kali"; Tandai diterima made the lead Menang, closed its follow-up and wrote the three history lines; list page and status chips rendered; wrong or short tokens gave 404; the app PDF without a session redirected to /masuk; share page and form fit a 375 px viewport without horizontal page scroll |
+| Not run | Playwright (M7) |
 
-## Security review (M4)
+## Security review (M5)
 
-Independent review by a fresh-context reviewer agent (a separate Claude instance that saw only the repository and the plan; not a human reviewer), with the plan's non-negotiables and the five review-focus scenarios as the checklist.
+Independent review by a fresh-context reviewer agent (a separate Claude instance that saw only the repository and the plan; not a human reviewer). It read the whole diff and every new file, built and vetted offline, ran the pure tests and an empirical check of fpdf's byte encoding; it could not run the database suite, lint or govulncheck in its sandbox. Verdict: "ready with fixes"; no Critical finding.
 
-| Severity | Finding | Status |
-|---|---|---|
-| Critical | none | — |
-| Important | Backfill left a stale `leads.next_follow_up_on` on closed leads (M3 allowed dates on closed leads), breaking the cache invariant on day one and suppressing the penawaran auto-schedule after reopen | Fixed: migration 00004 now NULLs the cache on `menang`/`kalah`; asserted in `TestMigration4BackfillsFollowUpsAndSeedsTemplates` |
-| Important | `lead.ChangeStatus` still used the wall clock for the penawaran default while the web layer used the injectable clock | Fixed: it takes the workspace's `today`; store tests use fixed dates |
-| Important | `Lists` read one capped query and split it in Go, so ≥ 400 overdue rows would hide today's list while the count said otherwise (D-044) | Fixed: one capped query per bucket; `TestListsNeverStarveLaterBuckets` (105 overdue + today + upcoming) |
-| Important | Open follow-ups could be scheduled on, or undone for, a closed lead, which then appeared in "Hari ini" wearing a Kalah badge (plan ambiguity) | Fixed per D-045: `ErrLeadClosed` from `Schedule` and `Undo`, panel shows an explanation instead of the form, no "Batalkan selesai" for closed leads; store and web tests |
-| Important | Lock-order inversion (lead→follow-up in Schedule/ChangeStatus, follow-up→lead in Done/Undo) could deadlock two devices into a 500 | Fixed: Done/Undo lock the lead row first; unique-violation races map to `ErrAnotherOpen`. Proven by `TestDoneAndUndoWaitForTheLeadLockInsteadOfDeadlocking`: one transaction holds the lead row while Done/Undo run concurrently, waits (via `pg_stat_activity`) until they block, then locks the follow-up row; with the inverted order temporarily reintroduced the test failed with `deadlock detected (SQLSTATE 40P01)`, with the fix it passes (3 of 3 runs) |
-| Minor | edit path validated an invisible date field; create path accepted any year for the first follow-up; no-phone POST answered 200 (refresh re-posts); dead `fuRow.Created`; leftover in a test | Fixed (`TestLeadCreateBoundsTheFirstFollowUpDate`; PRG with flash) |
-| Minor | plan items not delivered: CI grep for tenant tables; `AppendActivity` without `RETURNING`; tenant matrix file not extended (coverage lives in the foreign-id tests) | CI grep delivered as a Go source scan (`TestEverySQLOnTenantTablesIsScopedByWorkspace`: every SQL literal touching a tenant table must mention `workspace_id`; runs in `make test` and CI); the other two stay open |
-| Minor, open | `whatsapp_opened` stores the template label rather than the key (labels are fixed constants, so history is stable); follow-up rows open only the follow-up template; each htmx done/undo recomputes the list data for the chip counts; `internal/template` shadows `html/template` inside package `web`; `dateLabel` duplicates `formatDateID`; "Mendatang" lists beyond-a-week rows without a "showing 100 of N" hint; the Down migration fails once new-kind activity rows exist | Recorded, none affects isolation or integrity |
-| Recommendation (M5) | adopt the lead-first lock order as a convention; consider an `activity` package so M5 does not add a third hook; replace the `kind` CHECK with a lookup table or Go whitelist in 00005; share tokens in the path, 128-bit, revocable, rate-limited, `no-store`; PDF generation bounded by a timeout and size cap; `{tautan}` from the share URL | Carried into the M5 plan |
+| # | Severity | Finding | Status |
+|---|---|---|---|
+| 1 | Important | `latin1()` wrote UTF-8 bytes into a single-byte (cp1252) core font, so "Café" printed as "CafÃ©" and widths were wrong | **Fixed**: text goes through fpdf's cp1252 translator, unmapped runes become `?`; `TestRenderPDFEncodesTextForTheCoreFont` pins the bytes (`é` → `e9`, en dash → `96`, emoji → `?`) |
+| 2 | Important | The PDF printed the customer's phone and the same bytes are served from the public link; a forwarded link leaked the number | **Fixed**: phone removed from the PDF; `TestRenderPDFOmitsTheCustomerPhone`; the public-page leakage list now includes the phone |
+| 3 | Important | The PDF date used the process zone, so a quotation created before 07:00 WIB on a UTC server was dated the previous day | **Fixed**: `PDFOptions.Loc` (workspace zone from the app, WIB from the public link) and `PDFOptions.Today`; `TestRenderPDFUsesTheGivenZoneDayAndKeepsNoteLines` checks WIB and UTC renderings |
+| 4 | Minor | R-24 claimed a sentence on the detail page that was not there | **Fixed**: the share box says the link always shows the latest saved version |
+| 5 | Minor | Share tokens in the application's request and error logs | **Fixed**: paths are logged as `/p/{token}`; `TestRequestLoggerMasksShareTokens`; R-25 lowered, D-052 updated |
+| 7 | Minor | Down migration 00005 failed once quotation history existed | **Fixed**: the Down step deletes `quotation_*` history lines before restoring the CHECK (documented); `MigrateTo` can roll back; the migration test exercises down-then-up |
+| 8 | Minor | The browser preview read "2.5" as 25 while the server reads it as 2.5 | **Fixed**: the preview parses quantities like `money.ParseQty`; checked live (1.5 and 2,5 both preview correctly) |
+| 11 | Minor | Dead `updated` variable in the edit handler | **Fixed** (no `quotation_updated` history line yet, see open items) |
+| 12 | Minor | PDF printed the stored status (an expired offer said "Terkirim") and flattened note line breaks | **Fixed** with #3 |
+| 13 | Minor | PDF handler copied the buffer; list pager emitted an empty `q=` | Buffer copy fixed; empty `q=` left as is |
+| 6 | Minor | "Dibuka N kali" counts messengers' link-preview fetches | Open, recorded as R-27 |
+| 9 | Minor | `{tautan}` can carry an expired or rejected quotation's link | Open, recorded as R-28 |
+| 10 | Minor | "Buat tautan baru" on a draft mints a token early (harmless: drafts never resolve publicly) | Open |
+| 14 | Minor | A past "berlaku sampai" is accepted, producing a link that answers "tidak berlaku lagi" at once | Open |
+| 15 | Minor | Creating a quotation for a closed lead is hidden in the UI but allowed by the store | Open, product decision |
+| 16 | Minor | Test gaps: no DB-level "invalid row → nothing written" test | Open; the PDF encoding and phone gaps are closed |
 
-Reviewer's verdict: "Ready to commit: with fixes" — authorization, tenant isolation, CSRF, encoding, logging hygiene and idempotency judged sound and well tested; the five Important items are fixed and tested above.
+Declined by the reviewer as out of scope: rate-limit keying behind NAT (deployment, D-042), single-instance limiter, lead title on the public page, accepting a never-sent draft, quotations for closed leads, numbers beyond 9999, substring number search.
 
 ## Known defects and open items
 
-- Task F's handler code was written together with its tests (the tests passed on their first run); every other task followed red → green.
-- Databases that ran the first draft of migration 00004 on this machine (dev and test) did not get the closed-lead cache reset because goose records the version, not the text; no such database exists outside this laptop, and the only closed lead there has no cached date.
-- Follow-ups beyond seven days have no tab of their own; they appear under "Mendatang" below a heading. The "Mendatang" count only covers the seven-day window (D-044).
-- The WhatsApp tap is recorded when the button is pressed, which is "opened", not "sent"; the history wording says so.
-- Templates have three fixed slots; no custom slots or deletion (D-046). Owners-only applies to the time zone; any member can edit templates (one member per workspace today).
-- A throwaway test account exists in the local development database only.
-- golangci-lint is not installed locally; `make lint` builds it through `go run` (minutes on first use).
+- Editing a sent quotation changes what the customer's link shows; the detail page now says so, revision history is deferred until pilots ask (R-24).
+- Share tokens stay in a reverse proxy's access log and browser history; the application's own logs mask them (R-25).
+- PDF text outside cp1252 (emoji, arrows) renders as `?` (R-26); a Unicode font is a follow-up.
+- "Dibuka N kali" may count a messenger's link preview (R-27); `{tautan}` may point at an expired or rejected quotation (R-28).
+- Editing records no history line (`quotation_updated`), "Buat tautan baru" works on drafts, a past "berlaku sampai" is accepted, and the store allows quotations for closed leads (reviewer minors 10, 11, 14, 15).
+- The share page and PDF compute expiry in WIB regardless of the workspace zone (D-052).
+- Port 8080 on this laptop was taken by another local project during the live check; the server was run on 8089.
 
 ## Decisions awaiting approval
 
-- Commit the M4 change set (proposed message in the session report) and merge `m4-followups-whatsapp` into `main`.
-- D-043..D-049 recorded as routine decisions within the approved plan; say so if any should change.
+- Commit the M5 change set (proposed message in the session report) and merge `m5-quotations` into `main`.
+- D-050..D-055 recorded as routine decisions within the approved scope; say so if any should change.
 
 ## Next three actions
 
-1. Founder reviews the M4 report, approves the commit; Claude commits, merges to `main`, watches the CI run.
-2. Milestone 5 plan: quotations (items in thousandths, server-authoritative totals, numbering per workspace, share token page with print CSS, PDF generator choice), `{tautan}` placeholder wired to the share link, `quotation_*` activity kinds.
+1. Founder reviews the M5 report, approves the commit; Claude commits, merges to `main`, watches the CI run.
+2. Milestone 6 plan: invoices from quotations (number per workspace, items, due date), append-only payments (DP/cicilan/pelunasan, idempotency key, reversals), balances in SQL, receivables list, dashboard read models, the "Pengingat DP/pelunasan" templates wired to invoices.
 3. Founder: Day 1 outreach, Gate G1 (2026-10-18), decide whether the GitHub repository should stay public.

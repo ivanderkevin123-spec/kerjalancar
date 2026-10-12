@@ -19,6 +19,25 @@
 
 {{template "prospek_wa" .}}
 
+<section class="mt-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <div class="flex items-center justify-between">
+    <h2 class="text-sm font-semibold text-slate-900">Penawaran</h2>
+    {{if .Data.Lead.Status.Open}}<a href="/app/penawaran/baru?prospek={{.Data.Lead.ID}}" class="{{template "btn_primary"}} text-sm">+ Buat penawaran</a>{{end}}
+  </div>
+  {{if .Data.Quotations}}
+  <ul class="mt-2 divide-y divide-slate-100 text-sm">
+    {{range .Data.Quotations}}
+    <li class="flex items-center justify-between gap-3 py-2">
+      <a href="/app/penawaran/{{.Q.ID}}" class="min-w-0 hover:underline"><span class="font-medium text-slate-900">#{{.Q.Number}}</span> <span class="text-slate-500">{{rupiahInt .Q.Total}}</span></a>
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{qBadgeClass .Eff}}">{{.Eff.Label}}</span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="mt-2 text-sm text-slate-500">Belum ada penawaran untuk prospek ini.</p>
+  {{end}}
+</section>
+
 <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
   {{template "prospek_status" .}}
   {{template "prospek_catatan" .}}

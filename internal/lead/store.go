@@ -221,15 +221,28 @@ func diff(cur Lead, n Normalized) []Change {
 // workspace's calendar day (from the injectable clock), used for the
 // follow-up default when a lead reaches penawaran.
 func (s *Store) ChangeStatus(ctx context.Context, workspaceID, actorID, id uuid.UUID, to Status, lostReason string, today time.Time) (Lead, error) {
-	lostReason = strings.TrimSpace(lostReason)
-	if msg := ValidateLostReason(lostReason); msg != "" {
-		return Lead{}, &ValidationError{Fields: map[string]string{"lost_reason": msg}}
-	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return Lead{}, fmt.Errorf("lead: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	l, err := s.ChangeStatusTx(ctx, tx, workspaceID, actorID, id, to, lostReason, today)
+	if err != nil {
+		return Lead{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Lead{}, fmt.Errorf("lead: commit: %w", err)
+	}
+	return l, nil
+}
+
+// ChangeStatusTx is ChangeStatus inside the caller's transaction (quotation
+// acceptance wins the lead in the same transaction). It locks the lead row.
+func (s *Store) ChangeStatusTx(ctx context.Context, tx pgx.Tx, workspaceID, actorID, id uuid.UUID, to Status, lostReason string, today time.Time) (Lead, error) {
+	lostReason = strings.TrimSpace(lostReason)
+	if msg := ValidateLostReason(lostReason); msg != "" {
+		return Lead{}, &ValidationError{Fields: map[string]string{"lost_reason": msg}}
+	}
 
 	cur, err := getLead(ctx, tx, workspaceID, id, true)
 	if err != nil {
@@ -269,14 +282,7 @@ func (s *Store) ChangeStatus(ctx context.Context, workspaceID, actorID, id uuid.
 			return Lead{}, err
 		}
 	}
-	l, err := getLead(ctx, tx, workspaceID, id, false)
-	if err != nil {
-		return Lead{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return Lead{}, fmt.Errorf("lead: commit: %w", err)
-	}
-	return l, nil
+	return getLead(ctx, tx, workspaceID, id, false)
 }
 
 // AddNote appends a free-text note to the lead's history.

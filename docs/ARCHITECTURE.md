@@ -94,7 +94,7 @@ Single repository, single deployable service. A monorepo toolchain (Turborepo, w
 - Sessions server-side in Postgres (`alexedwards/scs` v2.9.0 + postgresstore); Argon2id (`golang.org/x/crypto/argon2`); CSRF via `net/http.NewCrossOriginProtection` (Go 1.25+; Fetch metadata with the standard library's `Origin`-header fallback, `BASE_URL` as trusted origin)
 - In-process rate limiting (single instance during pilots); error monitoring via Sentry Go SDK or GlitchTip [external service, needs approval]
 - Background jobs: none in v1 (reminders are queries). If daily digests are validated, add River (Postgres-backed), not Redis
-- PDF generation runs synchronously in the request (bounded by the 30 s timeout); no worker
+- PDF generation runs synchronously in the request (bounded by the 30 s timeout); no worker; `github.com/go-pdf/fpdf` v0.9.0, core fonts, text through the cp1252 translator, date in the caller's zone, no customer phone because the same bytes are served from the public link (D-055)
 - PDF: required in v1 for quotations and invoices (D-020, built in M5) with a pure-Go generator chosen at M5 start; share pages with print CSS remain
 - Tests: `testing` + `testify`; handler tests with `httptest` and HTML assertions; Postgres integration tests with per-test transactions; `-race`; `golangci-lint`; `govulncheck`; Playwright for critical flows (sign-up → first lead → quotation link → payment → today list)
 - CI: GitHub Actions with a Postgres service container
@@ -109,7 +109,7 @@ internal/
   workspace/           workspaces, memberships, roles (owner, staff), settings (time zone)
   customer/            customers (contacts): phone normalisation, validation, store (M3)
   lead/                leads, statuses and transition rules, append-only activities, store (M3)
-  quotation/           quotations, items, totals, share tokens, status
+  quotation/           quotations: items in thousandths, server-computed totals, numbering, status rules, share tokens, PDF (M5)
   invoice/             invoices, items, payments (DP / cicilan / pelunasan), balances
   followup/            follow-ups: due buckets in the workspace zone, schedule/done/undo, cache of leads.next_follow_up_on (M4)
   template/            WhatsApp message templates (three fixed slots per workspace), placeholder rendering, wa.me links (M4)
@@ -140,8 +140,8 @@ Two separate records. `lead_activities` is the business history the owner reads 
 ## 6. Money and quantities
 
 - Amounts are `BIGINT` rupiah. No floats in money paths.
-- Quantity is `NUMERIC(12,3)` in the database and an integer in thousandths in Go.
-- `line_total = round_half_up(qty_milli × unit_price / 1000)`; discounts are absolute rupiah or a percentage rounded per line; optional tax is a percentage on the subtotal rounded to the rupiah. One `money` package, table-driven tests, totals stored and re-verified on read.
+- Quantity is an integer in thousandths in Go and in the database (`bigint qty_milli`, D-054).
+- `line_total = round_half_up(qty_milli × unit_price / 1000)` (big-integer arithmetic, `money.LineTotal`); the discount is a whole percentage of the subtotal rounded half up; tax is a whole percentage of (subtotal − discount) rounded half up; total = subtotal − discount + tax. One `money` package, table-driven tests, totals stored on write and re-checked against the stored lines by test.
 - Payments are append-only; corrections are reversal records with a reason. Each payment submission carries an idempotency key.
 - Outstanding balance = invoice total − sum(confirmed payments) + sum(reversals), computed in SQL and asserted in Go.
 - Concurrent updates: optimistic version column on quotations and invoices; payment inserts in a transaction that re-reads the invoice with `FOR UPDATE`.
@@ -154,7 +154,7 @@ Two separate records. `lead_activities` is the business history the owner reads 
 
 ## 8. Security baseline (expanded in `THREAT_MODEL.md` in Phase B)
 
-HTTPS only; `Secure`, `HttpOnly`, `SameSite=Lax` cookies; Argon2id; login and share-link rate limits keyed on the client address (rightmost `X-Forwarded-For` only behind a trusted proxy, D-042); CSRF protection; strict `html/template` escaping; baseline headers (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`) and `Cache-Control: no-store` on HTML; 64 KiB form bodies; no mass assignment (explicit struct mapping per form); server-side validation with Indonesian error messages; share tokens 128-bit random, revocable; secrets only from environment; no secrets in git; `govulncheck` in CI; audit events for create/update/delete of customers, leads, quotations, invoices, payments, members; no personal data in logs.
+HTTPS only; `Secure`, `HttpOnly`, `SameSite=Lax` cookies; Argon2id; login and share-link rate limits keyed on the client address (rightmost `X-Forwarded-For` only behind a trusted proxy, D-042); share links are 128-bit tokens in the path, revocable, expiring with the quotation, served outside the session group with `no-store` and `noindex` (D-052); CSRF protection; strict `html/template` escaping; baseline headers (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`) and `Cache-Control: no-store` on HTML; 64 KiB form bodies; no mass assignment (explicit struct mapping per form); server-side validation with Indonesian error messages; share tokens 128-bit random, revocable; secrets only from environment; no secrets in git; `govulncheck` in CI; audit events for create/update/delete of customers, leads, quotations, invoices, payments, members; no personal data in logs.
 
 ## 9. Data retention and backup (outline)
 

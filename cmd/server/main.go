@@ -20,6 +20,7 @@ import (
 	"kerjalancar/internal/db"
 	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
+	"kerjalancar/internal/quotation"
 	"kerjalancar/internal/template"
 	"kerjalancar/internal/web"
 	"kerjalancar/internal/workspace"
@@ -74,6 +75,7 @@ func run() error {
 		Leads:            leads,
 		FollowUps:        followup.NewStore(pool),
 		MessageTemplates: template.NewStore(pool),
+		Quotations:       quotation.NewStore(pool, leads),
 		Templates:        templates,
 		RegistrationOpen: cfg.RegistrationOpen,
 		RegistrationCode: cfg.RegistrationCode,

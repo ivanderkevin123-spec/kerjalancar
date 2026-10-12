@@ -37,3 +37,18 @@ func TestRequestLoggerSkipsHealthEndpoints(t *testing.T) {
 
 	assert.Empty(t, buf.String(), "health probes must not flood the logs")
 }
+
+// Share tokens live in the path (D-052); the request log must not keep them.
+func TestRequestLoggerMasksShareTokens(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	h := web.NewRouter(web.Deps{Logger: logger, DB: fakePinger{}})
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/p/supersecrettoken/pdf", nil))
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+	out := buf.String()
+	assert.Contains(t, out, `"path":"/p/{token}/pdf"`)
+	assert.NotContains(t, out, "supersecrettoken")
+}
