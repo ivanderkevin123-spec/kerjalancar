@@ -110,10 +110,11 @@ internal/
   customer/            customers (contacts): phone normalisation, validation, store (M3)
   lead/                leads, statuses and transition rules, append-only activities, store (M3)
   quotation/           quotations: items in thousandths, server-computed totals, numbering, status rules, share tokens, PDF (M5)
-  invoice/             invoices, items, payments (DP / cicilan / pelunasan), balances
+  invoice/             invoices (copied items, numbering, share tokens), append-only payments and reversals, balances in SQL, receivables, PDF (M6)
+  docpdf/              the A4 document layout shared by quotation and invoice PDFs (M6)
   followup/            follow-ups: due buckets in the workspace zone, schedule/done/undo, cache of leads.next_follow_up_on (M4)
   template/            WhatsApp message templates (three fixed slots per workspace), placeholder rendering, wa.me links (M4)
-  dashboard/           read models for pipeline, receivables, today's list
+  (dashboard read models live in the stores: lead.Summary, followup.Lists, invoice.Summary, quotation.CountByStatus)
   audit/               append-only activity events
   money/               integer rupiah: ParseIDR / FormatIDR "Rp1.250.000" (M3); quantity scale and rounding (M5)
   db/                  sqlc output, migrations, test helpers
@@ -142,9 +143,9 @@ Two separate records. `lead_activities` is the business history the owner reads 
 - Amounts are `BIGINT` rupiah. No floats in money paths.
 - Quantity is an integer in thousandths in Go and in the database (`bigint qty_milli`, D-054).
 - `line_total = round_half_up(qty_milli × unit_price / 1000)` (big-integer arithmetic, `money.LineTotal`); the discount is a whole percentage of the subtotal rounded half up; tax is a whole percentage of (subtotal − discount) rounded half up; total = subtotal − discount + tax. One `money` package, table-driven tests, totals stored on write and re-checked against the stored lines by test.
-- Payments are append-only; corrections are reversal records with a reason. Each payment submission carries an idempotency key.
-- Outstanding balance = invoice total − sum(confirmed payments) + sum(reversals), computed in SQL and asserted in Go.
-- Concurrent updates: optimistic version column on quotations and invoices; payment inserts in a transaction that re-reads the invoice with `FOR UPDATE`.
+- Payments are append-only (a database trigger refuses UPDATE and DELETE); corrections are `payment_reversals` rows with a reason. Each payment form carries a server-issued idempotency key, unique per workspace; a repeated submission returns the first payment (D-057).
+- Outstanding balance = invoice total − sum(payments without a reversal), i.e. total − Σ payments + Σ reversed payments; computed in SQL (`LEFT JOIN LATERAL` in `internal/invoice`) and asserted equal to the Go recomputation in tests.
+- Concurrent updates: optimistic `version` column on quotations and invoices; payment inserts and reversals run in a transaction that locks the invoice row with `FOR UPDATE` and re-reads the balance, so two concurrent payments serialize and overpayment is refused (tested). Lock order across the app: lead → quotation → invoice; payment transactions take only the invoice row.
 
 ## 7. Time
 
@@ -154,7 +155,7 @@ Two separate records. `lead_activities` is the business history the owner reads 
 
 ## 8. Security baseline (expanded in `THREAT_MODEL.md` in Phase B)
 
-HTTPS only; `Secure`, `HttpOnly`, `SameSite=Lax` cookies; Argon2id; login and share-link rate limits keyed on the client address (rightmost `X-Forwarded-For` only behind a trusted proxy, D-042); share links are 128-bit tokens in the path, revocable, expiring with the quotation, served outside the session group with `no-store` and `noindex` (D-052); CSRF protection; strict `html/template` escaping; baseline headers (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`) and `Cache-Control: no-store` on HTML; 64 KiB form bodies; no mass assignment (explicit struct mapping per form); server-side validation with Indonesian error messages; share tokens 128-bit random, revocable; secrets only from environment; no secrets in git; `govulncheck` in CI; audit events for create/update/delete of customers, leads, quotations, invoices, payments, members; no personal data in logs.
+HTTPS only; `Secure`, `HttpOnly`, `SameSite=Lax` cookies; Argon2id; login and share-link rate limits keyed on the client address (rightmost `X-Forwarded-For` only behind a trusted proxy, D-042); share links are 128-bit tokens in the path (`/p/` quotations, `/t/` invoices), revocable, served outside the session group with `no-store` and `noindex` and masked in the application logs (D-052, D-058); CSRF protection; strict `html/template` escaping; baseline headers (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`) and `Cache-Control: no-store` on HTML; 64 KiB form bodies; no mass assignment (explicit struct mapping per form); server-side validation with Indonesian error messages; share tokens 128-bit random, revocable; secrets only from environment; no secrets in git; `govulncheck` in CI; audit events for create/update/delete of customers, leads, quotations, invoices, payments, members; no personal data in logs.
 
 ## 9. Data retention and backup (outline)
 

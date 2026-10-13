@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// Kind classifies an activity. New kinds (M4 follow-ups, M5 quotations) are
-// added by widening the CHECK constraint in a later migration.
+// Kind classifies an activity. New kinds (M4 follow-ups, M5 quotations, M6
+// invoices and payments) are rows in lead_activity_kinds (migration 00005+).
 type Kind string
 
 const (
@@ -26,6 +26,11 @@ const (
 	KindQuotationSent       Kind = "quotation_sent"
 	KindQuotationAccepted   Kind = "quotation_accepted"
 	KindQuotationRejected   Kind = "quotation_rejected"
+	KindInvoiceCreated      Kind = "invoice_created"
+	KindInvoiceIssued       Kind = "invoice_issued"
+	KindInvoiceVoided       Kind = "invoice_voided"
+	KindPaymentRecorded     Kind = "payment_recorded"
+	KindPaymentReversed     Kind = "payment_reversed"
 )
 
 // Change records one edited field for an "updated" activity. From/To are
@@ -48,9 +53,12 @@ type ActivityData struct {
 	Auto      bool   `json:"auto,omitempty"`
 	// Template is the label of the WhatsApp template that was opened.
 	Template string `json:"template,omitempty"`
-	// Quotation fields: the number ("0001") and the total as formatted rupiah.
+	// Quotation and invoice fields: the number ("0001") and the total as formatted rupiah.
 	Number string `json:"number,omitempty"`
 	Total  string `json:"total,omitempty"`
+	// Payment fields: the amount as formatted rupiah and the kind label ("DP").
+	Amount string `json:"amount,omitempty"`
+	Label  string `json:"label,omitempty"`
 }
 
 // Activity is one line of a lead's business history (D-036).
@@ -114,6 +122,16 @@ func (a Activity) Describe() string {
 		return "Penawaran #" + a.Data.Number + " diterima (" + a.Data.Total + ")"
 	case KindQuotationRejected:
 		return "Penawaran #" + a.Data.Number + " ditolak"
+	case KindInvoiceCreated:
+		return "Tagihan #" + a.Data.Number + " dibuat (" + a.Data.Total + ")"
+	case KindInvoiceIssued:
+		return "Tagihan #" + a.Data.Number + " diterbitkan (" + a.Data.Total + ")"
+	case KindInvoiceVoided:
+		return "Tagihan #" + a.Data.Number + " dibatalkan"
+	case KindPaymentRecorded:
+		return "Pembayaran " + a.Data.Amount + " dicatat untuk tagihan #" + a.Data.Number + " (" + a.Data.Label + ")"
+	case KindPaymentReversed:
+		return "Pembayaran " + a.Data.Amount + " dibatalkan untuk tagihan #" + a.Data.Number
 	case KindUpdated:
 		parts := make([]string, 0, len(a.Data.Changes))
 		for _, c := range a.Data.Changes {

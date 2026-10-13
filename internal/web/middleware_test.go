@@ -51,4 +51,9 @@ func TestRequestLoggerMasksShareTokens(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, `"path":"/p/{token}/pdf"`)
 	assert.NotContains(t, out, "supersecrettoken")
+
+	buf.Reset()
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/t/anothersecret", nil))
+	assert.Contains(t, buf.String(), `"path":"/t/{token}"`, "invoice links are masked too")
+	assert.NotContains(t, buf.String(), "anothersecret")
 }

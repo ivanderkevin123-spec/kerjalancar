@@ -1,0 +1,61 @@
+{{define "content"}}
+{{with .Data.V}}
+<article class="sheet rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+  <header class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wide text-teal-700">Tagihan</p>
+      <h1 class="text-2xl font-semibold text-slate-900">{{.I.WorkspaceName}}</h1>
+      <p class="text-sm text-slate-500">Tagihan #{{.I.Number}}</p>
+    </div>
+    <div class="text-sm text-slate-600 sm:text-right">
+      <p>Tanggal: {{waktuTanggal .I.Date $.Loc}}</p>
+      <p>Jatuh tempo: {{if .I.DueOn}}{{tanggal .I.DueOn}}{{else}}–{{end}}</p>
+      <span class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{iBadgeClass .Eff}}">{{.Eff.Label}}</span>
+    </div>
+  </header>
+  <section class="mt-4 text-sm text-slate-700">
+    <p class="text-slate-500">Kepada</p>
+    <p class="font-medium text-slate-900">{{.I.CustomerName}}</p>
+    <p>Proyek: {{.I.LeadTitle}}</p>
+  </section>
+  <table class="mt-4 w-full text-sm">
+    <thead class="text-left text-xs uppercase text-slate-500">
+      <tr><th class="py-2">Uraian</th><th class="py-2 text-right">Jumlah</th><th class="py-2 text-right">Harga satuan</th><th class="py-2 text-right">Total</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {{range .I.Items}}
+      <tr>
+        <td class="py-2 pr-2 text-slate-900">{{.Description}}</td>
+        <td class="py-2 text-right whitespace-nowrap">{{qty .QtyMilli}}{{if .Unit}} {{.Unit}}{{end}}</td>
+        <td class="py-2 text-right whitespace-nowrap">{{rupiahInt .UnitPrice}}</td>
+        <td class="py-2 text-right whitespace-nowrap font-medium">{{rupiahInt .LineTotal}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  <dl class="mt-4 ml-auto w-full max-w-xs space-y-1 text-sm">
+    <div class="flex justify-between"><dt class="text-slate-500">Subtotal</dt><dd>{{rupiahInt .I.Subtotal}}</dd></div>
+    {{if gt .I.DiscountPct 0}}<div class="flex justify-between"><dt class="text-slate-500">Diskon {{.I.DiscountPct}}%</dt><dd>-{{rupiahInt .I.DiscountAmount}}</dd></div>{{end}}
+    {{if gt .I.TaxPct 0}}<div class="flex justify-between"><dt class="text-slate-500">Pajak {{.I.TaxPct}}%</dt><dd>{{rupiahInt .I.TaxAmount}}</dd></div>{{end}}
+    <div class="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-slate-900"><dt>Total</dt><dd>{{rupiahInt .I.Total}}</dd></div>
+    <div class="flex justify-between"><dt class="text-slate-500">Sudah dibayar</dt><dd>{{rupiahInt .I.Paid}}</dd></div>
+    <div class="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold {{if gt .I.Balance 0}}text-rose-700{{else}}text-emerald-700{{end}}"><dt>Sisa</dt><dd>{{rupiahInt .I.Balance}}</dd></div>
+  </dl>
+  {{if .I.Payments}}
+  <section class="mt-4 text-sm">
+    <p class="font-medium text-slate-900">Pembayaran yang tercatat</p>
+    <ul class="mt-1 divide-y divide-slate-100">
+      {{range .I.Payments}}{{if not .Reversal}}
+      <li class="flex justify-between py-1"><span>{{tanggalTgl .ReceivedOn}} · {{.Kind.Label}}</span><span>{{rupiahInt .Amount}}</span></li>
+      {{end}}{{end}}
+    </ul>
+  </section>
+  {{end}}
+  {{if .I.Notes}}<section class="mt-4 text-sm"><p class="font-medium text-slate-900">Catatan</p><p class="whitespace-pre-line text-slate-700">{{.I.Notes}}</p></section>{{end}}
+  <div class="no-print mt-6 flex flex-wrap gap-2">
+    <a href="/t/{{.I.ShareToken}}/pdf" class="{{template "btn_primary"}} text-sm">Unduh PDF</a>
+    <button type="button" onclick="window.print()" class="{{template "btn_secondary"}} text-sm">Cetak</button>
+  </div>
+</article>
+{{end}}
+{{end}}

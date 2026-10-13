@@ -45,6 +45,8 @@ type followupListData struct {
 	Tabs  []chip
 	Pager Pager
 	Row   *fuRow // set when rendering one row fragment
+	// OverdueInvoices appear under the Terlambat tab: issued, unpaid, past due (M6).
+	OverdueInvoices []iView
 }
 
 func (s *server) rowView(f followup.FollowUp, today time.Time, loc *time.Location) fuRow {
@@ -107,6 +109,13 @@ func (s *server) followUpListData(r *http.Request, tab string) (followupListData
 	switch tab {
 	case "terlambat":
 		d.Rows = s.rows(lists.Overdue, today, loc, tab)
+		overdue, err := s.Invoices.Overdue(r.Context(), ws.ID, today, 50)
+		if err != nil {
+			return followupListData{}, err
+		}
+		for _, inv := range overdue {
+			d.OverdueInvoices = append(d.OverdueInvoices, s.iview(inv, today))
+		}
 	case "mendatang":
 		d.Rows = s.rows(lists.Upcoming, today, loc, tab)
 		d.Later = s.rows(lists.Later, today, loc, tab)

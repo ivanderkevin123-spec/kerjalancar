@@ -1,0 +1,173 @@
+{{define "content"}}
+{{with .Data}}
+<div class="flex items-start justify-between gap-3">
+  <div class="min-w-0">
+    <p class="text-sm text-slate-500"><a href="/app/tagihan" class="hover:underline">Tagihan</a> ›</p>
+    <h1 class="text-xl font-semibold text-slate-900">Tagihan #{{.V.I.Number}}</h1>
+    <p class="mt-1 text-sm text-slate-600"><a href="/app/prospek/{{.Lead.ID}}" class="font-medium text-teal-700 hover:underline">{{.Lead.Title}}</a> · <a href="/app/pelanggan/{{.V.I.CustomerID}}" class="hover:underline">{{.V.I.CustomerName}}</a>{{if .V.I.QuotationID}} · <a href="/app/penawaran/{{.V.I.QuotationID}}" class="hover:underline">Dari penawaran #{{.FromNumber}}</a>{{end}}</p>
+  </div>
+  <div class="flex shrink-0 flex-col items-end gap-2">
+    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 {{iBadgeClass .V.Eff}}">{{.V.Eff.Label}}</span>
+    {{if .V.I.Editable}}<a href="/app/tagihan/{{.V.I.ID}}/ubah" class="{{template "btn_secondary"}} text-sm">Ubah</a>{{end}}
+  </div>
+</div>
+{{if .Err}}<div role="alert" class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{.Err}}</div>{{end}}
+
+<dl class="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-slate-200 sm:grid-cols-4">
+  <div><dt class="text-slate-500">Total</dt><dd class="text-lg font-semibold text-slate-900">{{rupiahInt .V.I.Total}}</dd></div>
+  <div><dt class="text-slate-500">Sisa</dt><dd class="text-lg font-semibold {{if gt .V.I.Balance 0}}text-rose-700{{else}}text-emerald-700{{end}}">{{rupiahInt .V.I.Balance}}</dd></div>
+  <div><dt class="text-slate-500">Jatuh tempo</dt><dd class="font-medium text-slate-900">{{if .V.I.DueOn}}{{tanggal .V.I.DueOn}}{{else}}<span class="text-slate-400">–</span>{{end}}</dd></div>
+  <div><dt class="text-slate-500">Dibuka pelanggan</dt><dd class="font-medium text-slate-900">{{if .V.I.FirstOpenedAt}}Dibuka {{.V.I.OpenCount}} kali, pertama {{waktu .V.I.FirstOpenedAt $.Loc}}{{else}}Belum dibuka{{end}}</dd></div>
+</dl>
+
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Kirim ke pelanggan</h2>
+  {{if eq .V.I.Status "draft"}}
+  <p class="mt-1 text-sm text-slate-600">Terbitkan untuk mengunci isi tagihan, membuat tautan yang bisa dibuka pelanggan tanpa login, dan mulai mencatat pembayaran.</p>
+  <form method="post" action="/app/tagihan/{{.V.I.ID}}/terbit" class="mt-2"><button type="submit" class="{{template "btn_primary"}} text-sm">Terbitkan (buat tautan)</button></form>
+  {{else if eq .V.I.Status "void"}}
+  <p class="mt-1 text-sm text-slate-600">Tagihan dibatalkan {{waktu .V.I.VoidedAt $.Loc}}; tautannya tidak berlaku lagi.</p>
+  {{else}}
+  {{if .V.ShareURL}}
+  <p class="mt-1 text-sm text-slate-600">Tautan untuk pelanggan (tanpa login). Tautan menampilkan item, total, jumlah yang sudah dibayar, dan sisa tagihan.</p>
+  <p class="mt-1 break-all rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800">{{.V.ShareURL}}</p>
+  <div class="mt-2 flex flex-wrap gap-2">
+    <a href="{{.V.ShareURL}}" target="_blank" rel="noopener" class="{{template "btn_secondary"}} text-sm">Buka tautan</a>
+    <form method="post" action="/app/tagihan/{{.V.I.ID}}/tautan"><input type="hidden" name="aksi" value="cabut"><button type="submit" class="{{template "btn_secondary"}} text-sm">Cabut tautan</button></form>
+  </div>
+  {{else}}
+  <p class="mt-1 text-sm text-slate-600">Tautan dicabut. Pelanggan tidak bisa lagi membuka tautan lama.</p>
+  <form method="post" action="/app/tagihan/{{.V.I.ID}}/tautan" class="mt-2"><input type="hidden" name="aksi" value="baru"><button type="submit" class="{{template "btn_secondary"}} text-sm">Buat tautan baru</button></form>
+  {{end}}
+  {{end}}
+  <div class="mt-3 flex flex-wrap gap-2">
+    <a href="/app/tagihan/{{.V.I.ID}}/pdf" class="{{template "btn_secondary"}} text-sm">Unduh PDF</a>
+    {{if and .V.I.CustomerPhone (ne .V.I.Status "void")}}
+    <form method="post" action="/app/tagihan/{{.V.I.ID}}/wa" target="_blank" hx-boost="false" class="flex items-center gap-2">
+      <label for="template" class="sr-only">Pesan</label>
+      <select id="template" name="template" class="rounded-lg border border-slate-300 px-2 py-2 text-sm">
+        {{range .Templates}}<option value="{{.Key}}"{{if eq .Key "pengingat_pelunasan"}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+      <button type="submit" class="{{template "btn_primary"}} text-sm">Buka WhatsApp</button>
+    </form>
+    {{end}}
+  </div>
+  {{if ne .V.I.Status "draft"}}<p class="mt-2 text-xs text-slate-500">Dari halaman ini, placeholder {{"{nilai}"}} diisi sisa tagihan ({{rupiahInt .V.I.Balance}}) dan {{"{tautan}"}} diisi tautan tagihan ini.</p>{{end}}
+</section>
+
+{{if ne .V.I.Status "draft"}}
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Pembayaran</h2>
+  {{if .V.I.Payments}}
+  <div class="-mx-4 overflow-x-auto px-4">
+    <table class="mt-2 w-full min-w-[32rem] text-sm">
+      <thead class="text-left text-xs uppercase text-slate-500"><tr><th class="py-1">Tanggal</th><th class="py-1">Jenis</th><th class="py-1">Metode</th><th class="py-1 text-right">Jumlah</th><th class="py-1">Catatan</th><th class="py-1"></th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {{range .V.I.Payments}}
+        <tr class="{{if .Reversal}}text-slate-400{{end}} align-top">
+          <td class="py-2 pr-2 whitespace-nowrap{{if .Reversal}} line-through{{end}}">{{tanggalTgl .ReceivedOn}}</td>
+          <td class="py-2 pr-2"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{if .Reversal}}bg-slate-100 text-slate-500 ring-slate-200{{else}}bg-emerald-50 text-emerald-700 ring-emerald-200{{end}}">{{.Kind.Label}}</span></td>
+          <td class="py-2 pr-2{{if .Reversal}} line-through{{end}}">{{.Method.Label}}</td>
+          <td class="py-2 text-right whitespace-nowrap font-medium{{if .Reversal}} line-through{{end}}">{{rupiahInt .Amount}}</td>
+          <td class="py-2 pl-2 text-slate-600">{{.Note}}{{if .RecordedByName}}<span class="block text-xs text-slate-400">dicatat {{.RecordedByName}}</span>{{end}}
+            {{if .Reversal}}<span class="block text-xs text-rose-700">Dibatalkan {{waktu .Reversal.CreatedAt $.Loc}}{{if .Reversal.ReversedByName}} oleh {{.Reversal.ReversedByName}}{{end}}: {{.Reversal.Reason}}</span>{{end}}</td>
+          <td class="py-2 pl-2 text-right">
+            {{if not .Reversal}}
+            <details class="text-left">
+              <summary class="cursor-pointer text-xs font-medium text-rose-700 hover:underline">Batalkan</summary>
+              <form method="post" action="/app/tagihan/{{$.Data.V.I.ID}}/pembayaran/{{.ID}}/batal" class="mt-1 w-56 space-y-1">
+                <label for="reason-{{.ID}}" class="block text-xs text-slate-600">Alasan</label>
+                <input id="reason-{{.ID}}" name="reason" type="text" maxlength="300" placeholder="mis. transfer gagal" class="{{template "input_class"}} text-sm">
+                {{with index $.Data.ReverseErr (print .ID)}}<p class="text-xs text-red-600" role="alert">{{.}}</p>{{end}}
+                <button type="submit" class="{{template "btn_secondary"}} text-xs">Batalkan pembayaran</button>
+              </form>
+            </details>
+            {{end}}
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="mt-1 text-sm text-slate-500">Belum ada pembayaran yang dicatat.</p>
+  {{end}}
+  <dl class="mt-3 ml-auto w-full max-w-xs space-y-1 text-sm">
+    {{if gt .V.I.Paid 0}}<div class="flex justify-between"><dt class="text-slate-500">Sudah dibayar</dt><dd>{{rupiahInt .V.I.Paid}}</dd></div>{{end}}
+    <div class="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-slate-900"><dt>Sisa</dt><dd class="{{if gt .V.I.Balance 0}}text-rose-700{{else}}text-emerald-700{{end}}">{{rupiahInt .V.I.Balance}}</dd></div>
+  </dl>
+
+  {{if .PayKey}}
+  <form method="post" action="/app/tagihan/{{.V.I.ID}}/bayar" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4" novalidate>
+    <h3 class="text-sm font-semibold text-slate-900">Catat pembayaran</h3>
+    <p class="mt-1 text-xs text-slate-600">Catatan pembayaran ini adalah pencatatan Anda sendiri, bukan bukti transfer. Cocokkan dengan mutasi rekening Anda.</p>
+    <input type="hidden" name="key" value="{{.PayKey}}">
+    {{if .PayErrors.form}}<div role="alert" class="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{.PayErrors.form}}</div>{{end}}
+    <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div>
+        <label for="kind" class="block text-sm font-medium text-slate-700">Jenis</label>
+        <select id="kind" name="kind" class="{{template "input_class"}}">
+          {{range .Kinds}}<option value="{{.}}"{{if eq (print .) $.Data.PayForm.kind}} selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+        {{template "field_error" .PayErrors.kind}}
+      </div>
+      <div>
+        <label for="amount" class="block text-sm font-medium text-slate-700">Jumlah (Rp)</label>
+        <input id="amount" name="amount" type="text" inputmode="numeric" value="{{.PayForm.amount}}" placeholder="{{rupiahPlain .V.I.Balance}}" class="{{template "input_class"}}">
+        {{template "field_error" .PayErrors.amount}}
+      </div>
+      <div>
+        <label for="method" class="block text-sm font-medium text-slate-700">Metode</label>
+        <select id="method" name="method" class="{{template "input_class"}}">
+          {{range .Methods}}<option value="{{.}}"{{if eq (print .) $.Data.PayForm.method}} selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+        {{template "field_error" .PayErrors.method}}
+      </div>
+      <div>
+        <label for="received_on" class="block text-sm font-medium text-slate-700">Tanggal diterima</label>
+        <input id="received_on" name="received_on" type="date" value="{{.PayForm.received_on}}" class="{{template "input_class"}}">
+        {{template "field_error" .PayErrors.received_on}}
+      </div>
+      <div class="sm:col-span-2">
+        <label for="note" class="block text-sm font-medium text-slate-700">Catatan <span class="font-normal text-slate-400">(opsional, mis. nama pengirim)</span></label>
+        <input id="note" name="note" type="text" maxlength="300" value="{{.PayForm.note}}" class="{{template "input_class"}}">
+        {{template "field_error" .PayErrors.note}}
+      </div>
+    </div>
+    <div class="mt-3 flex justify-end"><button type="submit" class="{{template "btn_primary"}} text-sm">Simpan pembayaran</button></div>
+  </form>
+  {{end}}
+</section>
+{{end}}
+
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Item</h2>
+  <div class="-mx-4 overflow-x-auto px-4">
+    <table class="mt-2 w-full min-w-[32rem] text-sm">
+      <thead class="text-left text-xs uppercase text-slate-500"><tr><th class="py-1">Uraian</th><th class="py-1 text-right">Jumlah</th><th class="py-1 text-right">Harga satuan</th><th class="py-1 text-right">Total</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {{range .V.I.Items}}
+        <tr><td class="py-2 pr-2 text-slate-900">{{.Description}}</td><td class="py-2 text-right whitespace-nowrap">{{qty .QtyMilli}}{{if .Unit}} {{.Unit}}{{end}}</td><td class="py-2 text-right whitespace-nowrap">{{rupiahInt .UnitPrice}}</td><td class="py-2 text-right whitespace-nowrap font-medium">{{rupiahInt .LineTotal}}</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  <dl class="mt-3 ml-auto w-full max-w-xs space-y-1 text-sm">
+    <div class="flex justify-between"><dt class="text-slate-500">Subtotal</dt><dd>{{rupiahInt .V.I.Subtotal}}</dd></div>
+    {{if gt .V.I.DiscountPct 0}}<div class="flex justify-between"><dt class="text-slate-500">Diskon {{.V.I.DiscountPct}}%</dt><dd>-{{rupiahInt .V.I.DiscountAmount}}</dd></div>{{end}}
+    {{if gt .V.I.TaxPct 0}}<div class="flex justify-between"><dt class="text-slate-500">Pajak {{.V.I.TaxPct}}%</dt><dd>{{rupiahInt .V.I.TaxAmount}}</dd></div>{{end}}
+    <div class="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-slate-900"><dt>Total</dt><dd>{{rupiahInt .V.I.Total}}</dd></div>
+  </dl>
+  {{if .V.I.Notes}}<p class="mt-3 text-xs font-medium text-slate-500">Catatan</p><p class="whitespace-pre-line text-sm text-slate-700">{{.V.I.Notes}}</p>{{end}}
+  <p class="mt-3 text-xs text-slate-500">Dibuat {{waktu .V.I.CreatedAt $.Loc}}{{if .V.I.IssuedAt}} · Diterbitkan {{waktu .V.I.IssuedAt $.Loc}}{{end}}</p>
+</section>
+
+{{if ne .V.I.Status "void"}}
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Batalkan tagihan</h2>
+  <p class="mt-1 text-xs text-slate-500">Tagihan yang dibatalkan tetap tersimpan dengan status Dibatalkan; tautannya berhenti. Tagihan dengan pembayaran tidak bisa dibatalkan sebelum pembayarannya dibatalkan.</p>
+  <form method="post" action="/app/tagihan/{{.V.I.ID}}/batal" class="mt-2"><button type="submit" class="{{template "btn_secondary"}} text-sm text-rose-700">Batalkan tagihan</button></form>
+</section>
+{{end}}
+{{end}}
+{{end}}

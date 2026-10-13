@@ -9,7 +9,9 @@ import (
 	"unicode/utf8"
 
 	"kerjalancar/internal/followup"
+	"kerjalancar/internal/invoice"
 	"kerjalancar/internal/lead"
+	"kerjalancar/internal/quotation"
 	"kerjalancar/internal/workspace"
 )
 
@@ -62,6 +64,10 @@ type berandaData struct {
 	Total     int
 	FollowUps followup.Lists
 	Agenda    []fuRow // overdue first, then today's, at most five
+	// Receivables and quotation counts (M6) read straight from the stores.
+	Receivables     invoice.Summary
+	QuotationCounts map[quotation.Status]int
+	QuotationTotal  int
 }
 
 func (s *server) getBeranda(w http.ResponseWriter, r *http.Request) {
@@ -81,9 +87,23 @@ func (s *server) getBeranda(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	receivables, err := s.Invoices.Summary(r.Context(), ws.ID, today)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	qCounts, err := s.Quotations.CountByStatus(r.Context(), ws.ID, today)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	qTotal := 0
+	for _, n := range qCounts {
+		qTotal += n
+	}
 	v := s.appView(r, "Beranda", "beranda")
 	v.Flash = s.Sessions.PopString(r.Context(), sessionFlashKey)
-	v.Data = berandaData{Summary: sum, Total: total, FollowUps: lists, Agenda: s.dashboardFollowUps(lists, today, loc, 5)}
+	v.Data = berandaData{Summary: sum, Total: total, FollowUps: lists, Agenda: s.dashboardFollowUps(lists, today, loc, 5), Receivables: receivables, QuotationCounts: qCounts, QuotationTotal: qTotal}
 	s.render(w, r, http.StatusOK, "beranda", v)
 }
 

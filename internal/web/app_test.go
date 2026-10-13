@@ -20,6 +20,7 @@ import (
 	"kerjalancar/internal/customer"
 	"kerjalancar/internal/db/testdb"
 	"kerjalancar/internal/followup"
+	"kerjalancar/internal/invoice"
 	"kerjalancar/internal/lead"
 	"kerjalancar/internal/quotation"
 	"kerjalancar/internal/template"
@@ -55,6 +56,7 @@ func newApp(t *testing.T, mutate ...func(d *web.Deps)) *testApp {
 		FollowUps:        followup.NewStore(pool),
 		MessageTemplates: template.NewStore(pool),
 		Quotations:       quotation.NewStore(pool, leads),
+		Invoices:         invoice.NewStore(pool, leads),
 		Templates:        tmpl,
 		RegistrationOpen: true,
 		BaseURL:          "http://example.com",

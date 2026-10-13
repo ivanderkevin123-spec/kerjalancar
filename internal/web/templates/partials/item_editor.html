@@ -1,0 +1,41 @@
+{{/* Item editor shared by the quotation and invoice forms: one row, the add-row fragment wrapper, and the local-preview script. */}}
+{{define "penawaran_baris_baru"}}{{template "penawaran_baris" .Data}}{{end}}
+
+{{define "penawaran_baris"}}
+<tr class="align-top">
+  <td class="py-1 pr-2"><input name="desc" type="text" maxlength="300" value="{{.Desc}}" placeholder="Uraian pekerjaan / barang" class="{{template "input_class"}}">{{template "field_error" .Errors.description}}</td>
+  <td class="py-1 pr-2"><input name="qty" type="text" inputmode="decimal" value="{{.Qty}}" placeholder="1" class="{{template "input_class"}}">{{template "field_error" .Errors.qty}}</td>
+  <td class="py-1 pr-2"><input name="unit" type="text" maxlength="20" value="{{.Unit}}" placeholder="unit" class="{{template "input_class"}}">{{template "field_error" .Errors.unit}}</td>
+  <td class="py-1 pr-2"><input name="price" type="text" inputmode="numeric" value="{{.Price}}" placeholder="150.000" class="{{template "input_class"}}">{{template "field_error" .Errors.unit_price}}</td>
+  <td class="py-3 text-right text-slate-700 whitespace-nowrap" data-line></td>
+  <td class="py-2 text-right"><button type="button" data-remove class="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-red-600" aria-label="Hapus baris">×</button></td>
+</tr>
+{{end}}
+
+{{define "item_editor_script"}}
+<script>
+  // Local preview of totals only; the server recomputes everything on save.
+  (function () {
+    var fmt = function (n) { return 'Rp' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    // Same reading as the server (money.ParseQty): comma or dot is the decimal mark, no thousand separators.
+    var num = function (s) { return parseFloat((s || '').replace(/[^0-9,\.]/g, '').replace(',', '.')) || 0; };
+    var price = function (s) { return parseInt((s || '').replace(/[^0-9]/g, ''), 10) || 0; };
+    function recalc() {
+      var subtotal = 0;
+      document.querySelectorAll('#items tbody tr').forEach(function (tr) {
+        var q = num(tr.querySelector('[name=qty]').value), p = price(tr.querySelector('[name=price]').value);
+        var line = Math.round(q * p);
+        tr.querySelector('[data-line]').textContent = line ? fmt(line) : '';
+        subtotal += line;
+      });
+      var disc = Math.round(subtotal * (parseInt(document.getElementById('discount_pct').value, 10) || 0) / 100);
+      var tax = Math.round((subtotal - disc) * (parseInt(document.getElementById('tax_pct').value, 10) || 0) / 100);
+      document.getElementById('local-total').textContent = subtotal ? fmt(subtotal - disc + tax) : '–';
+    }
+    document.addEventListener('input', function (e) { if (e.target.closest('form')) recalc(); });
+    document.addEventListener('click', function (e) { var b = e.target.closest('[data-remove]'); if (b) { b.closest('tr').remove(); recalc(); } });
+    document.body.addEventListener('htmx:afterSwap', recalc);
+    recalc();
+  })();
+</script>
+{{end}}

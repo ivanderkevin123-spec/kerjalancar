@@ -56,17 +56,19 @@ func ClientIP(r *http.Request) string {
 }
 
 // logPath is the request path as it may appear in logs: share tokens travel
-// in the path (D-052), so "/p/<token>..." is masked to "/p/{token}...".
+// in the path (D-052), so "/p/<token>..." and "/t/<token>..." are masked.
 func logPath(p string) string {
-	const prefix = "/p/"
-	if !strings.HasPrefix(p, prefix) {
-		return p
+	for _, prefix := range []string{"/p/", "/t/"} {
+		if !strings.HasPrefix(p, prefix) {
+			continue
+		}
+		rest := p[len(prefix):]
+		if i := strings.IndexByte(rest, '/'); i >= 0 {
+			return prefix + "{token}" + rest[i:]
+		}
+		return prefix + "{token}"
 	}
-	rest := p[len(prefix):]
-	if i := strings.IndexByte(rest, '/'); i >= 0 {
-		return prefix + "{token}" + rest[i:]
-	}
-	return prefix + "{token}"
+	return p
 }
 
 // requestLogger writes one structured line per request. It logs the masked

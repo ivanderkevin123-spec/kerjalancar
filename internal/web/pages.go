@@ -1,11 +1,13 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // fragment writes one named template for an htmx swap; a failure becomes a logged 500.
@@ -66,6 +68,16 @@ func (s *server) tooManyRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	// A deadlock (40P01) or serialization failure (40001) means two people
+	// changed the same rows at once; Postgres aborted one of them and nothing
+	// was written. That is a "try again", not a server fault.
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && (pgErr.Code == "40P01" || pgErr.Code == "40001") {
+		s.Logger.WarnContext(r.Context(), "transaction conflict",
+			slog.String("request_id", middleware.GetReqID(r.Context())), slog.String("path", logPath(r.URL.Path)), slog.String("code", pgErr.Code))
+		s.errorPage(w, r, http.StatusConflict, "Perubahan bertabrakan", "Perubahan Anda bertabrakan dengan perubahan lain pada data yang sama dan tidak disimpan. Muat ulang halaman, lalu coba lagi.")
+		return
+	}
 	s.Logger.ErrorContext(r.Context(), "request failed",
 		slog.String("request_id", middleware.GetReqID(r.Context())), slog.String("path", logPath(r.URL.Path)), slog.Any("err", err))
 	s.errorPage(w, r, http.StatusInternalServerError, "Terjadi kesalahan", "Coba lagi beberapa saat. Jika berulang, hubungi tim KerjaLancar.")
