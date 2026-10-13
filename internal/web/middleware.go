@@ -55,8 +55,22 @@ func ClientIP(r *http.Request) string {
 	return ip
 }
 
-// requestLogger writes one structured line per request. It logs the path but
-// never the query string, because query strings will carry share tokens later.
+// logPath is the request path as it may appear in logs: share tokens travel
+// in the path (D-052), so "/p/<token>..." is masked to "/p/{token}...".
+func logPath(p string) string {
+	const prefix = "/p/"
+	if !strings.HasPrefix(p, prefix) {
+		return p
+	}
+	rest := p[len(prefix):]
+	if i := strings.IndexByte(rest, '/'); i >= 0 {
+		return prefix + "{token}" + rest[i:]
+	}
+	return prefix + "{token}"
+}
+
+// requestLogger writes one structured line per request. It logs the masked
+// path and never the query string.
 func requestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +84,7 @@ func requestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 			log.LogAttrs(r.Context(), slog.LevelInfo, "http request",
 				slog.String("request_id", middleware.GetReqID(r.Context())),
 				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
+				slog.String("path", logPath(r.URL.Path)),
 				slog.Int("status", ww.Status()),
 				slog.Int("bytes", ww.BytesWritten()),
 				slog.Duration("duration", time.Since(start)),

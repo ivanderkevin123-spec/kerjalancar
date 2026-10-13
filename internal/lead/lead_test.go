@@ -115,6 +115,9 @@ func TestDescribeRendersActivitiesForTheTimeline(t *testing.T) {
 	assert.Equal(t, "Status: Baru → Dihubungi", lead.Activity{Kind: lead.KindStatusChanged, Data: lead.ActivityData{From: lead.StatusBaru, To: lead.StatusDihubungi}}.Describe())
 	assert.Equal(t, "Status: Penawaran → Kalah · Alasan: harga", lead.Activity{Kind: lead.KindStatusChanged, Data: lead.ActivityData{From: lead.StatusPenawaran, To: lead.StatusKalah, Reason: "harga"}}.Describe())
 	assert.Equal(t, "Catatan ditambahkan", lead.Activity{Kind: lead.KindNote, Body: "telepon lagi besok"}.Describe())
+	assert.Equal(t, "Penawaran #0003 dikirim (Rp15.000.000)", lead.Activity{Kind: lead.KindQuotationSent, Data: lead.ActivityData{Number: "0003", Total: "Rp15.000.000"}}.Describe())
+	assert.Equal(t, "Penawaran #0003 diterima (Rp15.000.000)", lead.Activity{Kind: lead.KindQuotationAccepted, Data: lead.ActivityData{Number: "0003", Total: "Rp15.000.000"}}.Describe())
+	assert.Equal(t, "Penawaran #0003 ditolak", lead.Activity{Kind: lead.KindQuotationRejected, Data: lead.ActivityData{Number: "0003"}}.Describe())
 	upd := lead.Activity{Kind: lead.KindUpdated, Data: lead.ActivityData{Changes: []lead.Change{
 		{Field: "estimated_value", From: "Rp10.000.000", To: "Rp12.000.000"},
 		{Field: "source", From: "", To: "Instagram"},

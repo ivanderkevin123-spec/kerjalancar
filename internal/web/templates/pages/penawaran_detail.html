@@ -1,0 +1,90 @@
+{{define "content"}}
+{{with .Data}}
+<div class="flex items-start justify-between gap-3">
+  <div class="min-w-0">
+    <p class="text-sm text-slate-500"><a href="/app/penawaran" class="hover:underline">Penawaran</a> ›</p>
+    <h1 class="text-xl font-semibold text-slate-900">Penawaran #{{.V.Q.Number}}</h1>
+    <p class="mt-1 text-sm text-slate-600"><a href="/app/prospek/{{.Lead.ID}}" class="font-medium text-teal-700 hover:underline">{{.Lead.Title}}</a> · <a href="/app/pelanggan/{{.V.Q.CustomerID}}" class="hover:underline">{{.V.Q.CustomerName}}</a></p>
+  </div>
+  <div class="flex shrink-0 flex-col items-end gap-2">
+    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 {{qBadgeClass .V.Eff}}">{{.V.Eff.Label}}</span>
+    {{if .V.Q.Editable}}<a href="/app/penawaran/{{.V.Q.ID}}/ubah" class="{{template "btn_secondary"}} text-sm">Ubah</a>{{end}}
+  </div>
+</div>
+{{if .Msg}}<div role="status" class="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">{{.Msg}}</div>{{end}}
+{{if .Err}}<div role="alert" class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{.Err}}</div>{{end}}
+
+<dl class="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-slate-200 sm:grid-cols-4">
+  <div><dt class="text-slate-500">Total</dt><dd class="text-lg font-semibold text-slate-900">{{rupiahInt .V.Q.Total}}</dd></div>
+  <div><dt class="text-slate-500">Berlaku sampai</dt><dd class="font-medium text-slate-900">{{if .V.Q.ValidUntil}}{{tanggal .V.Q.ValidUntil}}{{else}}<span class="text-slate-400">–</span>{{end}}</dd></div>
+  <div><dt class="text-slate-500">Dibuat</dt><dd class="font-medium text-slate-900">{{waktu .V.Q.CreatedAt $.Loc}}</dd></div>
+  <div><dt class="text-slate-500">Dibuka pelanggan</dt><dd class="font-medium text-slate-900">{{if .V.Q.FirstOpenedAt}}Dibuka {{.V.Q.OpenCount}} kali, pertama {{waktu .V.Q.FirstOpenedAt $.Loc}}{{else}}Belum dibuka{{end}}</dd></div>
+</dl>
+
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Kirim ke pelanggan</h2>
+  {{if eq .V.Q.Status "draft"}}
+  <p class="mt-1 text-sm text-slate-600">Tandai terkirim untuk membuat tautan yang bisa dibuka pelanggan tanpa login.</p>
+  <form method="post" action="/app/penawaran/{{.V.Q.ID}}/kirim" class="mt-2"><button type="submit" class="{{template "btn_primary"}} text-sm">Kirim (buat tautan)</button></form>
+  {{else}}
+  {{if .V.ShareURL}}
+  <p class="mt-1 text-sm text-slate-600">Tautan untuk pelanggan (tanpa login). Tautan selalu menampilkan versi tersimpan terbaru; cabut tautan jika penawaran ini tidak berlaku lagi.</p>
+  <p class="mt-1 break-all rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800">{{.V.ShareURL}}</p>
+  <div class="mt-2 flex flex-wrap gap-2">
+    <a href="{{.V.ShareURL}}" target="_blank" rel="noopener" class="{{template "btn_secondary"}} text-sm">Buka tautan</a>
+    <form method="post" action="/app/penawaran/{{.V.Q.ID}}/tautan"><input type="hidden" name="aksi" value="cabut"><button type="submit" class="{{template "btn_secondary"}} text-sm">Cabut tautan</button></form>
+  </div>
+  {{else}}
+  <p class="mt-1 text-sm text-slate-600">Tautan dicabut. Pelanggan tidak bisa lagi membuka tautan lama.</p>
+  <form method="post" action="/app/penawaran/{{.V.Q.ID}}/tautan" class="mt-2"><input type="hidden" name="aksi" value="baru"><button type="submit" class="{{template "btn_secondary"}} text-sm">Buat tautan baru</button></form>
+  {{end}}
+  {{end}}
+  <div class="mt-3 flex flex-wrap gap-2">
+    <a href="/app/penawaran/{{.V.Q.ID}}/pdf" class="{{template "btn_secondary"}} text-sm">Unduh PDF</a>
+    {{if .Lead.CustomerPhone}}
+    <form method="post" action="/app/prospek/{{.Lead.ID}}/wa" target="_blank" hx-boost="false" class="flex items-center gap-2">
+      <label for="template" class="sr-only">Pesan</label>
+      <select id="template" name="template" class="rounded-lg border border-slate-300 px-2 py-2 text-sm">
+        {{range .Templates}}<option value="{{.Key}}">{{.Name}}</option>{{end}}
+      </select>
+      <button type="submit" class="{{template "btn_primary"}} text-sm">Buka WhatsApp</button>
+    </form>
+    {{end}}
+  </div>
+  {{if ne .V.Q.Status "draft"}}<p class="mt-2 text-xs text-slate-500">Placeholder {{"{tautan}"}} pada templat diisi dengan tautan penawaran terkirim terbaru.</p>{{end}}
+</section>
+
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Hasil</h2>
+  {{if or (eq .V.Q.Status "draft") (eq .V.Q.Status "sent")}}
+  <div class="mt-2 flex flex-wrap gap-2">
+    <form method="post" action="/app/penawaran/{{.V.Q.ID}}/terima"><button type="submit" class="{{template "btn_primary"}} text-sm">Tandai diterima</button></form>
+    <form method="post" action="/app/penawaran/{{.V.Q.ID}}/tolak"><button type="submit" class="{{template "btn_secondary"}} text-sm">Tandai ditolak</button></form>
+  </div>
+  <p class="mt-2 text-xs text-slate-500">Diterima menjadikan prospek Menang dan menutup follow-up yang terbuka.</p>
+  {{else if eq .V.Q.Status "accepted"}}<p class="mt-1 text-sm text-slate-700">Diterima {{waktu .V.Q.AcceptedAt $.Loc}}.</p>
+  {{else}}<p class="mt-1 text-sm text-slate-700">Ditolak {{waktu .V.Q.RejectedAt $.Loc}}.</p>{{end}}
+</section>
+
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Item</h2>
+  <div class="-mx-4 overflow-x-auto px-4">
+    <table class="mt-2 w-full min-w-[32rem] text-sm">
+      <thead class="text-left text-xs uppercase text-slate-500"><tr><th class="py-1">Uraian</th><th class="py-1 text-right">Jumlah</th><th class="py-1 text-right">Harga satuan</th><th class="py-1 text-right">Total</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {{range .V.Q.Items}}
+        <tr><td class="py-2 pr-2 text-slate-900">{{.Description}}</td><td class="py-2 text-right whitespace-nowrap">{{qty .QtyMilli}}{{if .Unit}} {{.Unit}}{{end}}</td><td class="py-2 text-right whitespace-nowrap">{{rupiahInt .UnitPrice}}</td><td class="py-2 text-right whitespace-nowrap font-medium">{{rupiahInt .LineTotal}}</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  <dl class="mt-3 ml-auto w-full max-w-xs space-y-1 text-sm">
+    <div class="flex justify-between"><dt class="text-slate-500">Subtotal</dt><dd>{{rupiahInt .V.Q.Subtotal}}</dd></div>
+    {{if gt .V.Q.DiscountPct 0}}<div class="flex justify-between"><dt class="text-slate-500">Diskon {{.V.Q.DiscountPct}}%</dt><dd>-{{rupiahInt .V.Q.DiscountAmount}}</dd></div>{{end}}
+    {{if gt .V.Q.TaxPct 0}}<div class="flex justify-between"><dt class="text-slate-500">Pajak {{.V.Q.TaxPct}}%</dt><dd>{{rupiahInt .V.Q.TaxAmount}}</dd></div>{{end}}
+    <div class="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-slate-900"><dt>Total</dt><dd>{{rupiahInt .V.Q.Total}}</dd></div>
+  </dl>
+  {{if .V.Q.Notes}}<p class="mt-3 text-xs font-medium text-slate-500">Catatan</p><p class="whitespace-pre-line text-sm text-slate-700">{{.V.Q.Notes}}</p>{{end}}
+</section>
+{{end}}
+{{end}}

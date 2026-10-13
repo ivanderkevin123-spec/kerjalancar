@@ -21,6 +21,7 @@ import (
 	"kerjalancar/internal/customer"
 	"kerjalancar/internal/followup"
 	"kerjalancar/internal/lead"
+	"kerjalancar/internal/quotation"
 	"kerjalancar/internal/template"
 	"kerjalancar/internal/workspace"
 )
@@ -48,6 +49,7 @@ type Deps struct {
 	Leads            *lead.Store
 	FollowUps        *followup.Store
 	MessageTemplates *template.Store
+	Quotations       *quotation.Store
 	Templates        *Templates
 	// Clock supplies "now"; nil means time.Now. Tests pin it to check date buckets.
 	Clock            func() time.Time
@@ -62,6 +64,7 @@ type server struct {
 }
 
 const (
+	publicLimitPerIP      = 60 // share-page requests per minute per client IP
 	loginLimitPerIP       = 10 // requests per minute per client IP, per endpoint
 	loginLimitPerEmail    = 5  // login attempts per minute per e-mail
 	registerLimitPerEmail = 10 // registration attempts per e-mail; typo corrections must not lock people out
@@ -109,6 +112,16 @@ func NewRouter(d Deps) http.Handler {
 	r.NotFound(s.notFound)
 	r.MethodNotAllowed(s.methodNotAllowed)
 
+	// Public share pages: outside the session group, GET only, rate-limited, never cached.
+	r.Group(func(r chi.Router) {
+		r.Use(noStore)
+		r.Use(httprate.LimitBy(publicLimitPerIP, time.Minute, func(r *http.Request) (string, error) {
+			return "public:" + ClientIP(r), nil
+		}, httprate.WithLimitHandler(s.tooManyRequests)))
+		r.Get("/p/{token}", s.getPublicQuotation)
+		r.Get("/p/{token}/pdf", s.getPublicQuotationPDF)
+	})
+
 	r.Group(func(r chi.Router) {
 		r.Use(noStore)
 		r.Use(s.limitBody)
@@ -152,6 +165,19 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/follow-up", s.getFollowUpList)
 			r.Post("/follow-up/{id}/selesai", s.postFollowUpDone)
 			r.Post("/follow-up/{id}/batal", s.postFollowUpUndo)
+
+			r.Get("/penawaran", s.getPenawaranList)
+			r.Get("/penawaran/baris", s.getPenawaranBaris)
+			r.Get("/penawaran/baru", s.getPenawaranBaru)
+			r.Post("/penawaran", s.postPenawaran)
+			r.Get("/penawaran/{id}", s.getPenawaran)
+			r.Get("/penawaran/{id}/ubah", s.getPenawaranUbah)
+			r.Post("/penawaran/{id}", s.postPenawaranUbah)
+			r.Post("/penawaran/{id}/kirim", s.postPenawaranAksi("kirim"))
+			r.Post("/penawaran/{id}/terima", s.postPenawaranAksi("terima"))
+			r.Post("/penawaran/{id}/tolak", s.postPenawaranAksi("tolak"))
+			r.Post("/penawaran/{id}/tautan", s.postPenawaranTautan)
+			r.Get("/penawaran/{id}/pdf", s.getPenawaranPDF)
 		})
 	})
 

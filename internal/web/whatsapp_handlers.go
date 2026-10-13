@@ -12,13 +12,22 @@ import (
 const msgNoPhone = "Pelanggan ini belum punya nomor WhatsApp."
 
 // waData fills a template for a lead: the customer's current name, the
-// workspace name, the estimate (if any). {tautan} stays empty until M5.
-func (s *server) waData(r *http.Request, l lead.Lead) template.Data {
-	d := template.Data{Nama: l.CustomerName, Usaha: currentWorkspace(r.Context()).Name}
+// workspace name, the estimate (if any), and {tautan} = the share link of the
+// lead's most recently sent quotation (empty when none, D-047).
+func (s *server) waData(r *http.Request, l lead.Lead) (template.Data, error) {
+	ws := currentWorkspace(r.Context())
+	d := template.Data{Nama: l.CustomerName, Usaha: ws.Name}
 	if l.EstimatedValue != nil {
 		d.Nilai = money.FormatIDR(*l.EstimatedValue)
 	}
-	return d
+	q, ok, err := s.Quotations.LatestShared(r.Context(), ws.ID, l.ID)
+	if err != nil {
+		return template.Data{}, err
+	}
+	if ok {
+		d.Tautan = s.BaseURL + "/p/" + q.ShareToken
+	}
+	return d, nil
 }
 
 // postProspekWa records that a WhatsApp message was opened for the lead and
@@ -53,6 +62,12 @@ func (s *server) postProspekWa(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	data, err := s.waData(r, l)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.audit(r, "lead.whatsapp", slog.String("lead_id", l.ID.String()), slog.String("template", string(key)))
-	http.Redirect(w, r, template.WaLink(l.CustomerPhone, template.Render(tpl.Body, s.waData(r, l))), http.StatusSeeOther)
+	// The target host is fixed (https://wa.me/); only the number and the message text vary.
+	http.Redirect(w, r, template.WaLink(l.CustomerPhone, template.Render(tpl.Body, data)), http.StatusSeeOther) //nolint:gosec // G710: fixed wa.me host
 }

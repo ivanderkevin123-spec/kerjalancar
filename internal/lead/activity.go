@@ -22,6 +22,10 @@ const (
 	KindFollowUpDone        Kind = "follow_up_done"
 	KindFollowUpUndone      Kind = "follow_up_undone"
 	KindWhatsAppOpened      Kind = "whatsapp_opened"
+	KindQuotationCreated    Kind = "quotation_created"
+	KindQuotationSent       Kind = "quotation_sent"
+	KindQuotationAccepted   Kind = "quotation_accepted"
+	KindQuotationRejected   Kind = "quotation_rejected"
 )
 
 // Change records one edited field for an "updated" activity. From/To are
@@ -44,6 +48,9 @@ type ActivityData struct {
 	Auto      bool   `json:"auto,omitempty"`
 	// Template is the label of the WhatsApp template that was opened.
 	Template string `json:"template,omitempty"`
+	// Quotation fields: the number ("0001") and the total as formatted rupiah.
+	Number string `json:"number,omitempty"`
+	Total  string `json:"total,omitempty"`
 }
 
 // Activity is one line of a lead's business history (D-036).
@@ -99,6 +106,14 @@ func (a Activity) Describe() string {
 		return "Follow-up dibuka kembali"
 	case KindWhatsAppOpened:
 		return "Pesan WhatsApp dibuka: " + a.Data.Template
+	case KindQuotationCreated:
+		return "Penawaran #" + a.Data.Number + " dibuat (" + a.Data.Total + ")"
+	case KindQuotationSent:
+		return "Penawaran #" + a.Data.Number + " dikirim (" + a.Data.Total + ")"
+	case KindQuotationAccepted:
+		return "Penawaran #" + a.Data.Number + " diterima (" + a.Data.Total + ")"
+	case KindQuotationRejected:
+		return "Penawaran #" + a.Data.Number + " ditolak"
 	case KindUpdated:
 		parts := make([]string, 0, len(a.Data.Changes))
 		for _, c := range a.Data.Changes {
