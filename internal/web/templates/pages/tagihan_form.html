@@ -1,0 +1,56 @@
+{{define "content"}}
+<p class="text-sm text-slate-500"><a href="/app/prospek/{{.Data.Lead.ID}}" class="hover:underline">{{.Data.Lead.Title}}</a> ›</p>
+<h1 class="text-xl font-semibold text-slate-900">{{.Data.Title}}</h1>
+<p class="mt-1 text-sm text-slate-500">Untuk <span class="font-medium text-slate-700">{{.Data.Lead.CustomerName}}</span>.{{if .Data.FromNumber}} Dari penawaran #{{.Data.FromNumber}}; baris di bawah adalah salinan yang boleh diubah.{{end}} Total dihitung di server dari baris yang tersimpan; jumlah boleh desimal dengan koma (2,5).</p>
+<form method="post" action="{{.Data.Action}}" class="mt-6 space-y-6" novalidate>
+  <input type="hidden" name="lead_id" value="{{.Data.Lead.ID}}">
+  {{if .Data.QuotationID}}<input type="hidden" name="quotation_id" value="{{.Data.QuotationID}}">{{end}}
+  {{if .Data.Edit}}<input type="hidden" name="version" value="{{.Data.Version}}">{{end}}
+  {{if .Errors.form}}<div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{.Errors.form}}</div>{{end}}
+  {{if .Errors.items}}<div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{.Errors.items}}</div>{{end}}
+
+  <div class="-mx-4 overflow-x-auto px-4">
+    <table id="items" class="w-full min-w-[40rem] text-sm">
+      <thead class="text-left text-xs uppercase text-slate-500">
+        <tr><th class="pb-2">Uraian</th><th class="pb-2 w-24">Jumlah</th><th class="pb-2 w-20">Satuan</th><th class="pb-2 w-32">Harga satuan</th><th class="pb-2 w-28 text-right">Total</th><th class="pb-2 w-8"></th></tr>
+      </thead>
+      <tbody>
+        {{range .Data.Rows}}{{template "penawaran_baris" .}}{{end}}
+      </tbody>
+    </table>
+  </div>
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="button" hx-get="/app/penawaran/baris" hx-target="#items tbody" hx-swap="beforeend" class="{{template "btn_secondary"}} text-sm">+ Tambah baris</button>
+    <p class="text-sm text-slate-500">Perkiraan total: <span id="local-total" class="font-medium text-slate-700">–</span></p>
+  </div>
+
+  <fieldset class="grid grid-cols-1 gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:grid-cols-3">
+    <div>
+      <label for="discount_pct" class="block text-sm font-medium text-slate-700">Diskon (%)</label>
+      <input id="discount_pct" name="discount_pct" type="text" inputmode="numeric" value="{{.Form.discount_pct}}" placeholder="0" class="{{template "input_class"}}">
+      {{template "field_error" .Errors.discount_pct}}
+    </div>
+    <div>
+      <label for="tax_pct" class="block text-sm font-medium text-slate-700">Pajak (%)</label>
+      <input id="tax_pct" name="tax_pct" type="text" inputmode="numeric" value="{{.Form.tax_pct}}" placeholder="0" class="{{template "input_class"}}">
+      {{template "field_error" .Errors.tax_pct}}
+    </div>
+    <div>
+      <label for="due_on" class="block text-sm font-medium text-slate-700">Jatuh tempo</label>
+      <input id="due_on" name="due_on" type="date" value="{{.Form.due_on}}" class="{{template "input_class"}}">
+      {{template "field_error" .Errors.due_on}}
+      <p class="mt-1 text-xs text-slate-500">Wajib diisi sebelum tagihan diterbitkan.</p>
+    </div>
+    <div class="sm:col-span-3">
+      <label for="notes" class="block text-sm font-medium text-slate-700">Catatan untuk pelanggan <span class="font-normal text-slate-400">(opsional, misalnya rekening tujuan)</span></label>
+      <textarea id="notes" name="notes" rows="3" maxlength="2000" class="{{template "input_class"}}">{{.Form.notes}}</textarea>
+      {{template "field_error" .Errors.notes}}
+    </div>
+  </fieldset>
+  <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <a href="{{.Data.Cancel}}" class="{{template "btn_secondary"}} text-center">Batal</a>
+    <button type="submit" class="{{template "btn_primary"}}">Simpan</button>
+  </div>
+</form>
+{{template "item_editor_script"}}
+{{end}}

@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"kerjalancar/internal/followup"
+	"kerjalancar/internal/invoice"
 	"kerjalancar/internal/quotation"
 )
 
@@ -61,4 +62,45 @@ func (s *server) getPublicQuotationPDF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.writePDF(w, r, q, shareLoc(), today)
+}
+
+type shareInvoiceData struct {
+	V iView
+}
+
+func (s *server) loadSharedInvoice(w http.ResponseWriter, r *http.Request) (invoice.Invoice, time.Time, bool) {
+	today := followup.Today(s.now(), shareLoc())
+	inv, err := s.Invoices.GetByToken(r.Context(), chi.URLParam(r, "token"))
+	switch {
+	case err == nil:
+		return inv, today, true
+	case errors.Is(err, invoice.ErrNotFound):
+		s.notFound(w, r)
+	default:
+		s.serverError(w, r, err)
+	}
+	return invoice.Invoice{}, today, false
+}
+
+func (s *server) getPublicInvoice(w http.ResponseWriter, r *http.Request) {
+	inv, today, ok := s.loadSharedInvoice(w, r)
+	if !ok {
+		return
+	}
+	if err := s.Invoices.RecordOpen(r.Context(), inv.WorkspaceID, inv.ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	v := newView("Tagihan #" + inv.Number() + " · " + inv.WorkspaceName)
+	v.Loc = shareLoc()
+	v.Data = shareInvoiceData{V: iView{I: inv, Eff: inv.Effective(today)}}
+	s.render(w, r, http.StatusOK, "share_tagihan", v)
+}
+
+func (s *server) getPublicInvoicePDF(w http.ResponseWriter, r *http.Request) {
+	inv, today, ok := s.loadSharedInvoice(w, r)
+	if !ok {
+		return
+	}
+	s.writeInvoicePDF(w, r, inv, shareLoc(), today)
 }

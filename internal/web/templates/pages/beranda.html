@@ -55,6 +55,17 @@
   <p class="mt-2 text-sm text-slate-500">Tidak ada follow-up hari ini.</p>
   {{end}}
 </section>
+{{with .Data.Receivables}}
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <div class="flex items-center justify-between">
+    <h2 class="text-sm font-semibold text-slate-900">Piutang</h2>
+    <a href="/app/tagihan" class="text-sm font-medium text-teal-700 hover:underline">Lihat tagihan</a>
+  </div>
+  <p class="mt-1 text-2xl font-semibold {{if gt .Outstanding 0}}text-slate-900{{else}}text-slate-500{{end}}">{{rupiahInt .Outstanding}}</p>
+  <p class="text-xs text-slate-500">{{.OutstandingCount}} tagihan belum lunas{{if gt .OverdueCount 0}} · <a href="/app/tagihan?status=terlambat" class="font-medium text-rose-700 hover:underline">{{.OverdueCount}} terlambat ({{rupiahInt .OverdueAmount}})</a>{{end}}</p>
+  <p class="mt-2 text-sm text-slate-700">Diterima bulan ini: <span class="font-medium">{{rupiahInt .PaidThisMonth}}</span> <span class="text-xs text-slate-400">(catatan Anda, bukan mutasi bank)</span></p>
+</section>
+{{end}}
 {{with .Data.Summary}}
 <div class="mt-4 grid grid-cols-2 gap-3">
   <a href="/app/prospek" class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
@@ -68,7 +79,21 @@
   </div>
 </div>
 <section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-  <h2 class="text-sm font-semibold text-slate-900">Per status</h2>
+  <div class="flex items-center justify-between">
+    <h2 class="text-sm font-semibold text-slate-900">Penawaran per status</h2>
+    <a href="/app/penawaran" class="text-sm font-medium text-teal-700 hover:underline">{{$.Data.QuotationTotal}} penawaran</a>
+  </div>
+  <ul class="mt-2 divide-y divide-slate-100 text-sm">
+    {{range qStatuses}}
+    <li class="flex items-center justify-between py-2">
+      <a href="/app/penawaran?status={{.}}" class="hover:underline"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{qBadgeClass .}}">{{.Label}}</span></a>
+      <span class="font-medium text-slate-900">{{index $.Data.QuotationCounts .}}</span>
+    </li>
+    {{end}}
+  </ul>
+</section>
+<section class="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <h2 class="text-sm font-semibold text-slate-900">Prospek per status</h2>
   <ul class="mt-2 divide-y divide-slate-100 text-sm">
     {{range statuses}}
     <li class="flex items-center justify-between py-2">

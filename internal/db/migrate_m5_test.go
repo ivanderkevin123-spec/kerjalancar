@@ -45,9 +45,7 @@ func TestMigration5KeepsHistoryAndAddsQuotations(t *testing.T) {
 		require.NoError(t, err, q)
 	}
 
-	applied, err := db.Migrate(ctx, pool)
-	require.NoError(t, err)
-	assert.Contains(t, applied, int64(5))
+	require.NoError(t, db.MigrateTo(ctx, pool, 5), "up to 5 only; 00006 adds more kinds")
 
 	var kinds int
 	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM lead_activity_kinds`).Scan(&kinds))
@@ -81,7 +79,7 @@ func TestMigration5KeepsHistoryAndAddsQuotations(t *testing.T) {
 	var quotationLines int
 	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM lead_activities WHERE kind LIKE 'quotation%'`).Scan(&quotationLines))
 	assert.Equal(t, 0, quotationLines)
-	applied, err = db.Migrate(ctx, pool)
+	applied, err := db.Migrate(ctx, pool)
 	require.NoError(t, err, "and up again")
 	assert.Contains(t, applied, int64(5))
 }

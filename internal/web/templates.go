@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
 	"kerjalancar/internal/auth"
 	"kerjalancar/internal/customer"
 	"kerjalancar/internal/followup"
+	"kerjalancar/internal/invoice"
 	"kerjalancar/internal/lead"
 	"kerjalancar/internal/money"
 	"kerjalancar/internal/quotation"
@@ -44,6 +46,10 @@ var pageLayouts = map[string]string{
 	"penawaran_form":   "app",
 	"penawaran_detail": "app",
 	"share_penawaran":  "share",
+	"tagihan_daftar":   "app",
+	"tagihan_form":     "app",
+	"tagihan_detail":   "app",
+	"share_tagihan":    "share",
 }
 
 var monthsID = [...]string{"", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"}
@@ -138,6 +144,24 @@ var templateFuncs = template.FuncMap{
 		}
 		return "bg-slate-100 text-slate-700 ring-slate-200"
 	},
+	"iBadgeClass": func(st invoice.Status) string {
+		switch st {
+		case invoice.StatusIssued:
+			return "bg-sky-50 text-sky-700 ring-sky-200"
+		case invoice.StatusPaid:
+			return "bg-emerald-50 text-emerald-700 ring-emerald-200"
+		case invoice.StatusOverdue:
+			return "bg-rose-50 text-rose-700 ring-rose-200"
+		case invoice.StatusVoid:
+			return "bg-amber-50 text-amber-700 ring-amber-200"
+		}
+		return "bg-slate-100 text-slate-700 ring-slate-200"
+	},
+	// tanggalTgl formats a date column value (UTC midnight) held by value.
+	"tanggalTgl": func(t time.Time) string { return formatDateID(t) },
+	// rupiahPlain is the amount without the "Rp" prefix, for placeholders.
+	"rupiahPlain":  func(v int64) string { return strings.TrimPrefix(money.FormatIDR(v), "Rp") },
+	"qStatuses":    func() []quotation.Status { return quotation.Statuses },
 	"statuses":     func() []lead.Status { return lead.Statuses },
 	"sources":      func() []lead.Source { return lead.Sources },
 	"projectTypes": func() []lead.ProjectType { return lead.ProjectTypes },

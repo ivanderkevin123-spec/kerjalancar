@@ -38,6 +38,28 @@
   {{end}}
 </section>
 
+<section class="mt-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <div class="flex items-center justify-between gap-3">
+    <h2 class="text-sm font-semibold text-slate-900">Tagihan</h2>
+    {{if ne .Data.Lead.Status "kalah"}}<a href="/app/tagihan/baru?prospek={{.Data.Lead.ID}}" class="{{template "btn_secondary"}} text-sm">+ Buat tagihan kosong</a>{{end}}
+  </div>
+  {{if ne .Data.Lead.Status "kalah"}}{{range .Data.Quotations}}{{if eq .Eff "accepted"}}
+  <a href="/app/tagihan/baru?prospek={{$.Data.Lead.ID}}&penawaran={{.Q.ID}}" class="mt-2 inline-block text-sm font-medium text-teal-700 hover:underline">+ Buat tagihan dari penawaran #{{.Q.Number}} ({{rupiahInt .Q.Total}})</a>
+  {{end}}{{end}}{{end}}
+  {{if .Data.Invoices}}
+  <ul class="mt-2 divide-y divide-slate-100 text-sm">
+    {{range .Data.Invoices}}
+    <li class="flex items-center justify-between gap-3 py-2">
+      <a href="/app/tagihan/{{.I.ID}}" class="min-w-0 hover:underline"><span class="font-medium text-slate-900">#{{.I.Number}}</span> <span class="text-slate-500">{{rupiahInt .I.Total}}</span>{{if gt .I.Paid 0}}<span class="block text-xs text-slate-500">Sisa {{rupiahInt .I.Balance}}</span>{{end}}</a>
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{iBadgeClass .Eff}}">{{.Eff.Label}}</span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="mt-2 text-sm text-slate-500">Belum ada tagihan untuk prospek ini.</p>
+  {{end}}
+</section>
+
 <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
   {{template "prospek_status" .}}
   {{template "prospek_catatan" .}}

@@ -18,7 +18,7 @@ import (
 // multi-line. Statements that only reference a tenant table through an
 // already-scoped join are still required to carry workspace_id.
 func TestEverySQLOnTenantTablesIsScopedByWorkspace(t *testing.T) {
-	tenant := regexp.MustCompile(`(?i)\b(FROM|UPDATE|INTO|JOIN)\s+(customers|leads|lead_activities|follow_ups|message_templates)\b`)
+	tenant := regexp.MustCompile(`(?i)\b(FROM|UPDATE|INTO|JOIN)\s+(customers|leads|lead_activities|follow_ups|message_templates|quotations|quotation_items|invoices|invoice_items|payments|payment_reversals)\b`)
 	root := filepath.Join("..", "..")
 	var offenders []string
 	err := filepath.WalkDir(filepath.Join(root, "internal"), func(path string, d os.DirEntry, err error) error {

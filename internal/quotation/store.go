@@ -394,7 +394,7 @@ func (s *Store) Reject(ctx context.Context, workspaceID, actorID, id uuid.UUID) 
 
 // RevokeShare disables the current link; RenewShare issues a fresh one.
 func (s *Store) RevokeShare(ctx context.Context, workspaceID, id uuid.UUID) (Quotation, error) {
-	return s.setShare(ctx, workspaceID, id, `share_revoked_at = now()`, nil)
+	return s.setShare(ctx, workspaceID, id, `UPDATE quotations SET share_revoked_at = now(), updated_at = now() WHERE workspace_id = $1 AND id = $2`, nil)
 }
 
 func (s *Store) RenewShare(ctx context.Context, workspaceID, id uuid.UUID) (Quotation, error) {
@@ -402,12 +402,14 @@ func (s *Store) RenewShare(ctx context.Context, workspaceID, id uuid.UUID) (Quot
 	if err != nil {
 		return Quotation{}, err
 	}
-	return s.setShare(ctx, workspaceID, id, `share_token = $3, share_revoked_at = NULL`, []any{token})
+	return s.setShare(ctx, workspaceID, id, `UPDATE quotations SET share_token = $3, share_revoked_at = NULL, updated_at = now() WHERE workspace_id = $1 AND id = $2`, []any{token})
 }
 
-func (s *Store) setShare(ctx context.Context, workspaceID, id uuid.UUID, set string, extra []any) (Quotation, error) {
+// setShare runs one complete, workspace-scoped UPDATE (whole statements keep
+// the tenant-scope source scan honest) and returns the fresh row.
+func (s *Store) setShare(ctx context.Context, workspaceID, id uuid.UUID, sql string, extra []any) (Quotation, error) {
 	args := append([]any{workspaceID, id}, extra...)
-	tag, err := s.pool.Exec(ctx, `UPDATE quotations SET `+set+`, updated_at = now() WHERE workspace_id = $1 AND id = $2`, args...)
+	tag, err := s.pool.Exec(ctx, sql, args...)
 	if err != nil {
 		return Quotation{}, fmt.Errorf("quotation: share: %w", err)
 	}
@@ -576,4 +578,30 @@ func nullableID(id uuid.UUID) *uuid.UUID {
 		return nil
 	}
 	return &id
+}
+
+// CountByStatus counts the workspace's quotations by effective status for
+// today (sent ones past their validity count as expired). Every status is
+// present in the map, zero included, so the dashboard can list them.
+func (s *Store) CountByStatus(ctx context.Context, workspaceID uuid.UUID, today time.Time) (map[Status]int, error) {
+	out := map[Status]int{}
+	for _, st := range Statuses {
+		out[st] = 0
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT CASE WHEN q.status = 'sent' AND q.valid_until IS NOT NULL AND q.valid_until < $2::date THEN 'expired' ELSE q.status END AS st, count(*)
+		FROM quotations q WHERE q.workspace_id = $1 GROUP BY 1`, workspaceID, today)
+	if err != nil {
+		return nil, fmt.Errorf("quotation: count by status: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var st Status
+		var n int
+		if err := rows.Scan(&st, &n); err != nil {
+			return nil, fmt.Errorf("quotation: scan count: %w", err)
+		}
+		out[st] = n
+	}
+	return out, rows.Err()
 }

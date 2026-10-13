@@ -80,6 +80,8 @@ type leadDetailData struct {
 	WaErr     string
 	// Quotations of this lead, newest first, with effective statuses.
 	Quotations []qView
+	// Invoices of this lead, newest first, with balances.
+	Invoices []iView
 }
 
 func (s *server) getProspekList(w http.ResponseWriter, r *http.Request) {
@@ -298,6 +300,13 @@ func (s *server) detailView(r *http.Request, l lead.Lead, data leadDetailData) (
 	}
 	for _, q := range qs {
 		data.Quotations = append(data.Quotations, s.qview(q, today))
+	}
+	invs, err := s.Invoices.ForLead(r.Context(), ws.ID, l.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, inv := range invs {
+		data.Invoices = append(data.Invoices, s.iview(inv, today))
 	}
 	waData, err := s.waData(r, l)
 	if err != nil {

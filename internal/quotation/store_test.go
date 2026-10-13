@@ -375,3 +375,39 @@ func TestCrossWorkspaceAccessIsRefusedAndWritesNothing(t *testing.T) {
 }
 
 var _ = errors.Is
+
+func TestCountByStatusUsesEffectiveStatuses(t *testing.T) {
+	f := setup(t)
+	mk := func() quotation.Quotation {
+		q, err := f.q.Create(f.ctx, f.wsA, f.userA, f.leadA.ID, validForm())
+		require.NoError(t, err)
+		return q
+	}
+	mk() // draft
+	sent, err := f.q.Send(f.ctx, f.wsA, f.userA, mk().ID)
+	require.NoError(t, err)
+	_ = sent
+	expired := mk()
+	n := validForm()
+	past := date(2026, 10, 1)
+	n.ValidUntil = &past
+	_, err = f.q.Update(f.ctx, f.wsA, f.userA, expired.ID, n, expired.Version)
+	require.NoError(t, err)
+	_, err = f.q.Send(f.ctx, f.wsA, f.userA, expired.ID)
+	require.NoError(t, err)
+	acc, err := f.q.Send(f.ctx, f.wsA, f.userA, mk().ID)
+	require.NoError(t, err)
+	_, err = f.q.Accept(f.ctx, f.wsA, f.userA, acc.ID, f.today)
+	require.NoError(t, err)
+	_, err = f.q.Reject(f.ctx, f.wsA, f.userA, mk().ID)
+	require.NoError(t, err)
+	_, err = f.q.Create(f.ctx, f.wsB, f.userB, f.leadB.ID, validForm())
+	require.NoError(t, err)
+
+	counts, err := f.q.CountByStatus(f.ctx, f.wsA, f.today)
+	require.NoError(t, err)
+	assert.Equal(t, map[quotation.Status]int{quotation.StatusDraft: 1, quotation.StatusSent: 1, quotation.StatusExpired: 1, quotation.StatusAccepted: 1, quotation.StatusRejected: 1}, counts)
+	other, err := f.q.CountByStatus(f.ctx, f.wsB, f.today)
+	require.NoError(t, err)
+	assert.Equal(t, map[quotation.Status]int{quotation.StatusDraft: 1, quotation.StatusSent: 0, quotation.StatusExpired: 0, quotation.StatusAccepted: 0, quotation.StatusRejected: 0}, other)
+}

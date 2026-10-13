@@ -20,6 +20,7 @@ import (
 	"kerjalancar/internal/auth"
 	"kerjalancar/internal/customer"
 	"kerjalancar/internal/followup"
+	"kerjalancar/internal/invoice"
 	"kerjalancar/internal/lead"
 	"kerjalancar/internal/quotation"
 	"kerjalancar/internal/template"
@@ -50,6 +51,7 @@ type Deps struct {
 	FollowUps        *followup.Store
 	MessageTemplates *template.Store
 	Quotations       *quotation.Store
+	Invoices         *invoice.Store
 	Templates        *Templates
 	// Clock supplies "now"; nil means time.Now. Tests pin it to check date buckets.
 	Clock            func() time.Time
@@ -120,6 +122,8 @@ func NewRouter(d Deps) http.Handler {
 		}, httprate.WithLimitHandler(s.tooManyRequests)))
 		r.Get("/p/{token}", s.getPublicQuotation)
 		r.Get("/p/{token}/pdf", s.getPublicQuotationPDF)
+		r.Get("/t/{token}", s.getPublicInvoice)
+		r.Get("/t/{token}/pdf", s.getPublicInvoicePDF)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -178,6 +182,20 @@ func NewRouter(d Deps) http.Handler {
 			r.Post("/penawaran/{id}/tolak", s.postPenawaranAksi("tolak"))
 			r.Post("/penawaran/{id}/tautan", s.postPenawaranTautan)
 			r.Get("/penawaran/{id}/pdf", s.getPenawaranPDF)
+
+			r.Get("/tagihan", s.getTagihanList)
+			r.Get("/tagihan/baru", s.getTagihanBaru)
+			r.Post("/tagihan", s.postTagihan)
+			r.Get("/tagihan/{id}", s.getTagihan)
+			r.Get("/tagihan/{id}/ubah", s.getTagihanUbah)
+			r.Post("/tagihan/{id}", s.postTagihanUbah)
+			r.Post("/tagihan/{id}/terbit", s.postTagihanAksi("terbit"))
+			r.Post("/tagihan/{id}/batal", s.postTagihanAksi("batal"))
+			r.Post("/tagihan/{id}/tautan", s.postTagihanTautan)
+			r.Post("/tagihan/{id}/bayar", s.postTagihanBayar)
+			r.Post("/tagihan/{id}/pembayaran/{pid}/batal", s.postTagihanPembayaranBatal)
+			r.Post("/tagihan/{id}/wa", s.postTagihanWa)
+			r.Get("/tagihan/{id}/pdf", s.getTagihanPDF)
 		})
 	})
 

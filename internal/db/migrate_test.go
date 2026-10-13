@@ -27,7 +27,7 @@ func TestMigrateIsIdempotentAndAppliesInit(t *testing.T) {
 
 	statuses, err := db.MigrationStatus(ctx, pool)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(statuses), 5, "migrations 00001 to 00005 are known")
+	require.GreaterOrEqual(t, len(statuses), 6, "migrations 00001 to 00006 are known")
 	for _, s := range statuses {
 		assert.Equal(t, goose.StateApplied, s.State, "migration %d", s.Source.Version)
 	}
